@@ -13,7 +13,7 @@ class AzureAuthManager:
             auto_login: True면 로그인 안 되어 있을 때 자동 로그인 시도
                        False면 로그인 상태만 체크 (MCP 서버용)
         """
-        self. credential = None
+        self.credential = None
         self.is_authenticated = False
         self.auth_message = ""
         
@@ -28,13 +28,13 @@ class AzureAuthManager:
         # Azure CLI 설치 확인
         if not self._check_azure_cli_installed():
             self.is_authenticated = False
-            self. auth_message = "Azure CLI가 설치되지 않았습니다.\n설치:  https://learn.microsoft.com/cli/azure/install-azure-cli"
-            return False, self. auth_message
+            self.auth_message = "Azure CLI가 설치되지 않았습니다.\n설치:  https://learn.microsoft.com/cli/azure/install-azure-cli"
+            return False, self.auth_message
         
         # 로그인 상태 확인
         if not self._check_logged_in():
             self.is_authenticated = False
-            self. auth_message = "Azure에 로그인되어 있지 않습니다.\n실행:  az login"
+            self.auth_message = "Azure에 로그인되어 있지 않습니다.\n실행:  az login"
             return False, self.auth_message
         
         # Credential 초기화
@@ -46,7 +46,7 @@ class AzureAuthManager:
             return True, self.auth_message
         except Exception as e:
             self.is_authenticated = False
-            self. auth_message = f"인증 초기화 실패: {str(e)}"
+            self.auth_message = f"인증 초기화 실패: {str(e)}"
             return False, self.auth_message
     
     def _ensure_authenticated(self):
@@ -84,16 +84,25 @@ class AzureAuthManager:
     def _check_azure_cli_installed(self) -> bool:
         """Azure CLI 설치 확인"""
         try:
-            # Windows에서는 shell=True를 사용하여 PATH를 제대로 찾도록 함
             import platform
-            use_shell = platform.system() == "Windows"
+            is_windows = platform.system() == "Windows"
             
-            result = subprocess.run(
-                ["az", "--version"],
-                capture_output=True,
-                timeout=5,
-                shell=use_shell
-            )
+            # Windows에서는 az.cmd를 사용하거나 shell=True로 실행
+            if is_windows:
+                # Windows에서는 shell=True를 사용하여 PATH에서 az.cmd를 찾도록 함
+                result = subprocess.run(
+                    "az --version",
+                    capture_output=True,
+                    timeout=5,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    ["az", "--version"],
+                    capture_output=True,
+                    timeout=5,
+                    shell=False
+                )
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
@@ -101,17 +110,26 @@ class AzureAuthManager:
     def _check_logged_in(self) -> bool:
         """Azure CLI 로그인 상태 확인"""
         try:
-            # Windows에서는 shell=True를 사용하여 PATH를 제대로 찾도록 함
             import platform
-            use_shell = platform.system() == "Windows"
+            is_windows = platform.system() == "Windows"
             
-            result = subprocess.run(
-                ["az", "account", "show"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                shell=use_shell
-            )
+            # Windows에서는 shell=True로 문자열 명령 사용
+            if is_windows:
+                result = subprocess.run(
+                    "az account show",
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    ["az", "account", "show"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    shell=False
+                )
             
             # 디버깅을 위해 에러 출력 (stderr로)
             if result.returncode != 0:
@@ -130,13 +148,21 @@ class AzureAuthManager:
         print("🔐 브라우저에서 로그인을 진행하세요...", file=sys.stderr)
         try:
             import platform
-            use_shell = platform.system() == "Windows"
+            is_windows = platform.system() == "Windows"
             
-            result = subprocess.run(
-                ["az", "login"],
-                timeout=120,
-                shell=use_shell
-            )
+            if is_windows:
+                result = subprocess.run(
+                    "az login",
+                    timeout=120,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    ["az", "login"],
+                    timeout=120,
+                    shell=False
+                )
+            
             if result.returncode == 0:
                 print("✅ 로그인 성공!", file=sys.stderr)
                 # Credential 재초기화
@@ -171,15 +197,26 @@ class AzureAuthManager:
         
         try:
             import platform
-            use_shell = platform.system() == "Windows"
+            is_windows = platform.system() == "Windows"
             
-            result = subprocess.run(
-                ["az", "keyvault", "list", "--query", "[]. {name:name, location:location, resourceGroup:resourceGroup}", "-o", "json"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                shell=use_shell
-            )
+            cmd = "az keyvault list --query \"[].{name:name, location:location, resourceGroup:resourceGroup}\" -o json"
+            
+            if is_windows:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    ["az", "keyvault", "list", "--query", "[].{name:name, location:location, resourceGroup:resourceGroup}", "-o", "json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    shell=False
+                )
             
             if result.returncode == 0:
                 vaults = json.loads(result. stdout)
@@ -197,15 +234,24 @@ class AzureAuthManager:
         """현재 구독 정보 조회"""
         try:
             import platform
-            use_shell = platform.system() == "Windows"
+            is_windows = platform.system() == "Windows"
             
-            result = subprocess.run(
-                ["az", "account", "show", "-o", "json"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                shell=use_shell
-            )
+            if is_windows:
+                result = subprocess.run(
+                    "az account show -o json",
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    ["az", "account", "show", "-o", "json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    shell=False
+                )
             
             if result.returncode == 0:
                 return json.loads(result.stdout)
@@ -220,7 +266,7 @@ class AzureAuthManager:
         
         # 로그인 상태 다시 체크
         if not self._check_logged_in():
-            self. is_authenticated = False
+            self.is_authenticated = False
             self.auth_message = "Azure에 로그인되어 있지 않습니다.\n실행:  az login"
             return False
         

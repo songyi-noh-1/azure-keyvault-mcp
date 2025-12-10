@@ -131,7 +131,7 @@ class KeyVaultManager:
     def get_certificate(self, name: str) -> Dict:
         """인증서 조회"""
         try:
-            cert = self. cert_client.get_certificate(name)
+            cert = self.cert_client.get_certificate(name)
             return {
                 "success": True,
                 "name": cert.name,
