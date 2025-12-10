@@ -107,14 +107,22 @@ class AzureAuthManager:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
     
-    def _check_logged_in(self) -> bool:
-        """Azure CLI 로그인 상태 확인"""
+    def _check_logged_in(self, timeout_override: Optional[int] = None) -> bool:
+        """Azure CLI 로그인 상태 확인
+        
+        Args:
+            timeout_override: 타임아웃 시간 오버라이드 (None이면 기본값 사용)
+        """
         try:
             import platform
             is_windows = platform.system() == "Windows"
             
-            # Windows에서는 더 긴 타임아웃 필요 (초기화 시간)
-            timeout = 30 if is_windows else 10
+            # 타임아웃 설정
+            if timeout_override is not None:
+                timeout = timeout_override
+            else:
+                # Windows에서는 더 긴 타임아웃 필요 (초기화 시간)
+                timeout = 30 if is_windows else 10
             
             # Windows에서는 shell=True로 문자열 명령 사용
             if is_windows:
@@ -267,13 +275,31 @@ class AzureAuthManager:
         except Exception: 
             return None
 
-    def refresh_auth_status(self) -> bool:
-        """인증 상태 재확인 (로그인 후 호출)"""
+    def refresh_auth_status(self, force_check: bool = False) -> bool:
+        """인증 상태 재확인 (로그인 후 호출)
+        
+        Args:
+            force_check: True면 az account show를 강제로 실행, False면 이미 인증된 경우 건너뜀
+        """
+        # 이미 인증되어 있고 Credential이 있으면 빠른 경로 사용
+        if not force_check and self.is_authenticated and self.credential:
+            # Credential이 여전히 유효한지 간단히 확인
+            try:
+                from azure.identity import DefaultAzureCredential
+                # 이미 있는 credential을 재사용 (새로 만들지 않음)
+                print("✅ 인증 상태 확인됨 (이미 인증된 상태)", file=sys.stderr)
+                return True
+            except Exception:
+                # Credential이 유효하지 않으면 재확인 필요
+                pass
+        
         print("🔄 인증 상태 재확인 중...", file=sys.stderr)
         
-        # 로그인 상태 다시 체크 (타임아웃 시간 포함)
+        # 로그인 상태 다시 체크
+        # force_check가 True면 긴 타임아웃, False면 짧은 타임아웃 사용
         try:
-            logged_in = self._check_logged_in()
+            timeout = 30 if force_check else 10  # 재확인 시에는 더 짧게
+            logged_in = self._check_logged_in(timeout_override=timeout)
         except Exception as e:
             print(f"⚠️ 로그인 상태 확인 중 오류: {str(e)}", file=sys.stderr)
             logged_in = False

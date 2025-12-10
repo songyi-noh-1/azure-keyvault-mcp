@@ -315,7 +315,8 @@ async def handle_call_tool(name: str, arguments: dict):
         # check_azure_auth 도구는 예외 (무한 루프 방지)
         if name == "check_azure_auth":
             # 현재 상태 재확인 (중요!)
-            auth_manager.refresh_auth_status()
+            # force_check=True로 실제로 az account show를 실행
+            auth_manager.refresh_auth_status(force_check=True)
             
             status = auth_manager.get_auth_status()
             
@@ -348,7 +349,8 @@ async def handle_call_tool(name: str, arguments: dict):
             # 인증 안 되어 있으면 재확인 시도
             if not auth_manager.is_authenticated:
                 # 한 번 더 체크 (사용자가 로그인했을 수 있음)
-                auth_manager.refresh_auth_status()
+                # force_check=False로 이미 인증된 경우 빠른 경로 사용
+                auth_manager.refresh_auth_status(force_check=False)
                 
                 # 여전히 안 되어 있으면 안내
                 if not auth_manager.is_authenticated:
