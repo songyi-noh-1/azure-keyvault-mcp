@@ -279,26 +279,29 @@ class AzureAuthManager:
         """인증 상태 재확인 (로그인 후 호출)
         
         Args:
-            force_check: True면 az account show를 강제로 실행, False면 이미 인증된 경우 건너뜀
+            force_check: True면 az account show를 강제로 실행하여 실제 상태 확인
+                       False면 이미 인증된 경우 az account show를 건너뛰고 즉시 반환
         """
-        # 이미 인증되어 있고 Credential이 있으면 빠른 경로 사용
+        # 빠른 경로: 이미 인증되어 있고 Credential이 있으며, 강제 확인이 아닌 경우
         if not force_check and self.is_authenticated and self.credential:
-            # Credential이 여전히 유효한지 간단히 확인
-            try:
-                from azure.identity import DefaultAzureCredential
-                # 이미 있는 credential을 재사용 (새로 만들지 않음)
-                print("✅ 인증 상태 확인됨 (이미 인증된 상태)", file=sys.stderr)
-                return True
-            except Exception:
-                # Credential이 유효하지 않으면 재확인 필요
-                pass
+            # az account show를 호출하지 않고 즉시 반환 (타임아웃 방지)
+            print("✅ 인증 상태 확인됨 (이미 인증된 상태, 재확인 건너뜀)", file=sys.stderr)
+            return True
         
+        # 실제 확인이 필요한 경우
         print("🔄 인증 상태 재확인 중...", file=sys.stderr)
         
-        # 로그인 상태 다시 체크
+        # Azure CLI 설치 확인
+        if not self._check_azure_cli_installed():
+            self.is_authenticated = False
+            self.credential = None
+            self.auth_message = "Azure CLI가 설치되지 않았습니다.\n설치:  https://learn.microsoft.com/cli/azure/install-azure-cli"
+            return False
+        
+        # 로그인 상태 확인 (az account show 실행)
         # force_check가 True면 긴 타임아웃, False면 짧은 타임아웃 사용
         try:
-            timeout = 30 if force_check else 10  # 재확인 시에는 더 짧게
+            timeout = 30 if force_check else 10
             logged_in = self._check_logged_in(timeout_override=timeout)
         except Exception as e:
             print(f"⚠️ 로그인 상태 확인 중 오류: {str(e)}", file=sys.stderr)
@@ -306,6 +309,7 @@ class AzureAuthManager:
         
         if not logged_in:
             self.is_authenticated = False
+            self.credential = None
             self.auth_message = "Azure에 로그인되어 있지 않습니다.\n실행:  az login"
             return False
         
@@ -319,6 +323,7 @@ class AzureAuthManager:
             return True
         except Exception as e: 
             self.is_authenticated = False
+            self.credential = None
             self.auth_message = f"인증 초기화 실패: {str(e)}"
             print(f"⚠️ Credential 초기화 실패: {str(e)}", file=sys.stderr)
             return False
