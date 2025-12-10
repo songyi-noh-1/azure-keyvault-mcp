@@ -113,13 +113,16 @@ class AzureAuthManager:
             import platform
             is_windows = platform.system() == "Windows"
             
+            # Windows에서는 더 긴 타임아웃 필요 (초기화 시간)
+            timeout = 30 if is_windows else 10
+            
             # Windows에서는 shell=True로 문자열 명령 사용
             if is_windows:
                 result = subprocess.run(
                     "az account show",
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=timeout,
                     shell=True
                 )
             else:
@@ -127,17 +130,21 @@ class AzureAuthManager:
                     ["az", "account", "show"],
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=timeout,
                     shell=False
                 )
             
             # 디버깅을 위해 에러 출력 (stderr로)
             if result.returncode != 0:
-                print(f"⚠️ az account show 실패: {result.stderr}", file=sys.stderr)
+                error_msg = result.stderr.strip() if result.stderr else "알 수 없는 오류"
+                # 타임아웃이 아닌 경우에만 에러 출력 (타임아웃은 별도 처리)
+                if "timeout" not in error_msg.lower():
+                    print(f"⚠️ az account show 실패: {error_msg}", file=sys.stderr)
             
             return result.returncode == 0
         except subprocess.TimeoutExpired:
-            print("⚠️ az account show 타임아웃", file=sys.stderr)
+            print("⚠️ az account show 타임아웃 (30초 초과). Azure CLI가 느리게 응답하고 있습니다.", file=sys.stderr)
+            print("💡 해결 방법: PowerShell에서 'az account show'를 직접 실행해보고 응답 시간을 확인하세요.", file=sys.stderr)
             return False
         except Exception as e:
             print(f"⚠️ az account show 오류: {str(e)}", file=sys.stderr)
@@ -262,10 +269,16 @@ class AzureAuthManager:
 
     def refresh_auth_status(self) -> bool:
         """인증 상태 재확인 (로그인 후 호출)"""
-        print("🔄 인증 상태 재확인 중.. .", file=sys.stderr)
+        print("🔄 인증 상태 재확인 중...", file=sys.stderr)
         
-        # 로그인 상태 다시 체크
-        if not self._check_logged_in():
+        # 로그인 상태 다시 체크 (타임아웃 시간 포함)
+        try:
+            logged_in = self._check_logged_in()
+        except Exception as e:
+            print(f"⚠️ 로그인 상태 확인 중 오류: {str(e)}", file=sys.stderr)
+            logged_in = False
+        
+        if not logged_in:
             self.is_authenticated = False
             self.auth_message = "Azure에 로그인되어 있지 않습니다.\n실행:  az login"
             return False
@@ -281,4 +294,5 @@ class AzureAuthManager:
         except Exception as e: 
             self.is_authenticated = False
             self.auth_message = f"인증 초기화 실패: {str(e)}"
+            print(f"⚠️ Credential 초기화 실패: {str(e)}", file=sys.stderr)
             return False
