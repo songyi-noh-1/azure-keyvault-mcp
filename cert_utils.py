@@ -1,4 +1,3 @@
-# cert_utils.py
 import os
 import tempfile
 from typing import Optional, Tuple, List

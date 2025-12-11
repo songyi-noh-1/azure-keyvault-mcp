@@ -1,6 +1,6 @@
 # Azure Key Vault 관리 Agent (MCP)
 
-**Azure Key Vault의 Secret 및 Certificate 관리 전문 MCP 서버**
+**Azure Key Vault의 Secret 및 Certificate 관리, Application Gateway SSL 인증서 관리 전문 MCP 서버**
 
 ## 🎯 이 Agent가 하는 일
 
@@ -16,6 +16,14 @@
   - 인증서 체인 import
   - 인증서 조회/목록/삭제
   - 자체 서명 인증서 생성
+  - **신규 인증서 추가 시 Application Gateway 등록 제안**
+
+- **Application Gateway 관리**
+  - Application Gateway 목록 조회
+  - Application Gateway 상세 정보 조회
+  - Key Vault 인증서를 Application Gateway SSL 인증서로 등록
+  - Application Gateway SSL 인증서 목록 조회
+  - Application Gateway SSL 인증서 제거
 
 - **인증 관리**
   - Azure CLI 인증 자동 체크
@@ -29,7 +37,7 @@
 - Storage 관리
 - 기타 Azure 리소스 관리
 
-→ **Key Vault Secret/Certificate 관리만 전문**으로 다룹니다.
+→ **Key Vault Secret/Certificate 관리 및 Application Gateway SSL 인증서 관리**를 전문으로 다룹니다.
 
 ## 💬 사용 예시
 
@@ -104,57 +112,181 @@ AI:
 버전: def456
 ```
 
-## 📦 설치
+### 신규 인증서 추가 및 Application Gateway 등록
 
-### macOS/Linux
+```
+You: 새로운 SSL 인증서를 Key Vault에 등록해줘
 
+AI:
+✅ 인증서 'new-ssl-cert' import 완료
+Thumbprint: a1b2c3d4...
+
+💡 이 인증서를 Application Gateway의 SSL 인증서로도 등록하시겠어요?
+`add_ssl_certificate_to_appgw` 도구를 사용하여 등록할 수 있습니다.
+
+You: 응, 등록해줘
+
+AI:
+✅ SSL 인증서 added 완료
+- 인증서 이름: new-ssl-cert
+- Key Vault 인증서: new-ssl-cert
+- Key Vault: kv-prod-01
+
+💡 Application Gateway의 Listener TLS certificates에 등록되었습니다.
+🔄 Key Vault에서 인증서가 갱신되면 Application Gateway도 자동으로 최신 버전을 사용합니다.
+```
+
+### Application Gateway SSL 인증서 관리
+
+```
+You: appgw에 등록된 TLS 인증서 목록 알려줘
+
+AI:
+📋 총 2개의 SSL 인증서:
+- tempkey
+  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
+  - Provisioning State: Succeeded
+- hermes-kt-com
+  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/hermes-kt-com/
+  - Provisioning State: Succeeded
+```
+
+### 신규 인증서 추가 및 Application Gateway 등록
+
+```
+You: 새로운 SSL 인증서를 Key Vault에 등록해줘
+
+AI:
+✅ 인증서 'new-ssl-cert' import 완료
+Thumbprint: a1b2c3d4...
+
+💡 이 인증서를 Application Gateway의 SSL 인증서로도 등록하시겠어요?
+`add_ssl_certificate_to_appgw` 도구를 사용하여 등록할 수 있습니다.
+
+You: 응, 등록해줘
+
+AI:
+✅ SSL 인증서 added 완료
+- 인증서 이름: new-ssl-cert
+- Key Vault 인증서: new-ssl-cert
+- Key Vault: kv-prod-01
+
+💡 Application Gateway의 Listener TLS certificates에 등록되었습니다.
+🔄 Key Vault에서 인증서가 갱신되면 Application Gateway도 자동으로 최신 버전을 사용합니다.
+```
+
+### Application Gateway SSL 인증서 관리
+
+```
+You: appgw에 등록된 TLS 인증서 목록 알려줘
+
+AI:
+📋 총 2개의 SSL 인증서:
+- tempkey
+  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
+  - Provisioning State: Succeeded
+- hermes-kt-com
+  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/hermes-kt-com/
+  - Provisioning State: Succeeded
+```
+
+## 📋 사전작업 (MCP 서버 설정 전 필수)
+
+> ⚠️ **중요:** MCP 서버를 설정하기 전에 아래 사전작업을 모두 완료해야 합니다.
+
+### 1. Python 설치 확인
+
+**macOS/Linux:**
+```bash
+python3 --version
+# Python 3.8 이상이 필요합니다
+```
+
+**Windows:**
+```powershell
+python --version
+# Python 3.8 이상이 필요합니다
+```
+
+> **참고:** 
+> - Python이 설치되어 있지 않다면 [Python 공식 사이트](https://www.python.org/downloads/)에서 다운로드하세요.
+> - Windows에서 Python 설치 시 **"Add Python to PATH"** 옵션을 체크하는 것을 권장합니다.
+> - `python` 명령이 작동하지 않으면 `py` 명령을 시도해보세요.
+
+### 2. Azure CLI 설치 및 로그인
+
+**Azure CLI 설치 확인:**
+```bash
+az --version
+```
+
+> Azure CLI가 설치되어 있지 않다면:
+> - **macOS:** `brew install azure-cli`
+> - **Linux:** [Azure CLI 설치 가이드](https://learn.microsoft.com/cli/azure/install-azure-cli)
+> - **Windows:** [Azure CLI 설치 가이드](https://learn.microsoft.com/cli/azure/install-azure-cli-windows)
+
+**Azure 로그인:**
+```bash
+az login
+```
+
+> 로그인 후 구독이 올바르게 설정되었는지 확인:
+> ```bash
+> az account show
+> ```
+
+### 3. 프로젝트 클론 및 환경 설정
+
+**macOS/Linux:**
 ```bash
 git clone https://github.com/songyi-noh/azure-keyvault-mcp.git
 cd azure-keyvault-mcp
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-az login
 ```
 
-### Windows
-
-**1단계: 프로젝트 클론**
+**Windows:**
 ```powershell
+# 1단계: 프로젝트 클론
 git clone https://github.com/songyi-noh/azure-keyvault-mcp.git
 cd azure-keyvault-mcp
-```
 
-**2단계: venv 생성 (프로젝트 폴더 안에 생성됨)**
-```powershell
+# 2단계: venv 생성 (프로젝트 폴더 안에 생성됨)
 python -m venv venv
-```
 
-> 이 명령을 실행하면 `azure-keyvault-mcp\venv\` 폴더가 생성됩니다.
-
-**3단계: venv 활성화**
-```powershell
+# 3단계: venv 활성화
 venv\Scripts\activate
-```
 
-> 활성화되면 프롬프트 앞에 `(venv)`가 표시됩니다.
-
-**4단계: 필요한 패키지 설치**
-```powershell
+# 4단계: 필요한 패키지 설치
 pip install -r requirements.txt
 ```
 
-**5단계: Azure 로그인**
-```powershell
-az login
+> **참고:**
+> - venv 활성화되면 프롬프트 앞에 `(venv)`가 표시됩니다.
+> - 이 명령을 실행하면 `azure-keyvault-mcp\venv\` 폴더가 생성됩니다.
+
+### ✅ 사전작업 완료 확인
+
+모든 사전작업이 완료되었는지 확인:
+
+```bash
+# Python 버전 확인
+python3 --version  # 또는 python --version (Windows)
+
+# Azure CLI 로그인 확인
+az account show
+
+# venv 활성화 확인 (프롬프트에 (venv) 표시)
+# 패키지 설치 확인
+pip list | grep azure
 ```
 
-> **참고:** 
-> - Windows에서 Python이 설치되어 있지 않다면 [Python 공식 사이트](https://www.python.org/downloads/)에서 다운로드하세요.
-> - Python 설치 시 "Add Python to PATH" 옵션을 체크하는 것을 권장합니다.
-> - `python` 명령이 작동하지 않으면 `py` 명령을 시도해보세요.
+위 명령들이 모두 정상적으로 실행되면 다음 단계인 **"⚙️ MCP 서버 설정"**으로 진행하세요.
 
 ## ⚙️ MCP 서버 설정
+
+> ⚠️ **중요:** 아래 설정을 진행하기 전에 **"📋 사전작업"** 섹션의 모든 단계를 완료했는지 확인하세요.
 
 > **💡 venv란?**
 > 
@@ -362,71 +494,20 @@ Write-Host "Server: $serverPath"
 | | import_crt_certificate | CRT → PFX 변환 후 import |
 | | import_bundle_certificate | 번들 PEM → PFX |
 | | import_certificate_with_chain | 체인 포함 import |
+| | import_certificate_from_files | 로컬 파일 경로로부터 import (PEM, CRT, PFX 지원) |
+| | import_pfx_from_file | 로컬 PFX 파일로부터 직접 import |
+| | decode_and_import_certificate | 드래그한 파일 내용 자동 감지 후 import |
+| | import_certificate_with_auto_chain | 파일 기반 인증서 import (체인 자동 감지) |
 | | generate_self_signed_cert | 자체 서명 인증서 생성 |
 | | get_certificate | 인증서 조회 |
 | | list_certificates | 인증서 목록 |
 | | delete_certificate | 인증서 삭제 |
 | | detect_certificate_format | 인증서 형식 감지 |
-| | import_certificate_with_auto_chain | 파일 기반 인증서 import (체인 자동 감지) |
+| **Application Gateway** | list_application_gateways | Application Gateway 목록 조회 |
+| | get_application_gateway | Application Gateway 상세 정보 조회 |
+| | add_ssl_certificate_to_appgw | Key Vault 인증서를 Application Gateway SSL 인증서로 추가 |
+| | list_appgw_ssl_certificates | Application Gateway SSL 인증서 목록 조회 |
+| | remove_ssl_certificate_from_appgw | Application Gateway에서 SSL 인증서 제거 |
 
-## 🧪 테스트용 인증서 생성
 
-기능 테스트를 위해 가짜 인증서를 생성할 수 있습니다.
-
-### 간단한 인증서 (체인 없음)
-
-```bash
-# 기본 사용 (test.example.com)
-./generate_simple_cert.sh
-
-# 커스텀 도메인 및 디렉토리
-./generate_simple_cert.sh ./my-certs mydomain.com
-```
-
-생성되는 파일:
-- `server.crt` - 서버 인증서
-- `server.key` - 서버 개인키
-
-### 체인 인증서 포함 (루트 CA + 중간 CA + 서버)
-
-```bash
-# 기본 사용 (./test-certs 디렉토리에 생성)
-./generate_test_certs.sh
-
-# 커스텀 디렉토리
-./generate_test_certs.sh ./my-test-certs
-```
-
-생성되는 파일:
-- `server.crt` / `server.key` - 서버 인증서 및 개인키
-- `intermediate-ca.crt` - 중간 CA 인증서 (체인 테스트용)
-- `root-ca.crt` - 루트 CA 인증서
-- `server-chain.crt` - 서버 + 중간 CA 체인
-- `server-fullchain.crt` - 전체 체인 (서버 + 중간 + 루트)
-
-### 테스트 예시
-
-```python
-# 체인 자동 감지 테스트
-# intermediate-ca.crt가 같은 디렉토리에 있으면 자동으로 감지됨
-import_certificate_with_auto_chain(
-    name="test-cert",
-    cert_path="./test-certs/server.crt",
-    key_path="./test-certs/server.key"
-)
-
-# 체인 패턴 지정 테스트
-import_certificate_with_auto_chain(
-    name="test-cert",
-    cert_path="./test-certs/server.crt",
-    key_path="./test-certs/server.key",
-    chain_patterns=["intermediate*.crt", "chain*.pem"]
-)
-```
-
-## 🤝 기여
-
-Pull Request 환영합니다! 
-
-**전문 분야:** Key Vault Secret/Certificate 관리에 집중
 
