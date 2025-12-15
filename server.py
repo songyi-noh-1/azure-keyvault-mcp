@@ -151,19 +151,6 @@ async def handle_list_tools():
             }
         ),
         Tool(
-            name="generate_self_signed_cert",
-            description="자체 서명 인증서 생성 후 Key Vault에 등록 (테스트용)",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "인증서 이름"},
-                    "common_name": {"type": "string", "description": "CN (Common Name)"},
-                    "password": {"type": "string", "description": "비밀번호 (옵션)"}
-                },
-                "required": ["name", "common_name"]
-            }
-        ),
-        Tool(
             name="get_certificate",
             description="Key Vault에서 인증서 조회",
             inputSchema={
@@ -285,7 +272,7 @@ async def handle_list_tools():
         ),
         Tool(
             name="decode_and_import_certificate",
-            description="Cursor에서 드래그한 파일 내용을 받아서 자동으로 형식 판단 후 import",
+            description="파일 내용(텍스트 또는 base64)을 받아서 자동으로 형식 판단 후 import",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -852,27 +839,6 @@ async def handle_call_tool(name: str, arguments: dict):
             finally:
                 os.unlink(cert_path)
                 os.unlink(key_path)
-        
-        elif name == "generate_self_signed_cert":
-            pfx_bytes, thumbprint = CertificateUtils.generate_self_signed_cert(
-                common_name=arguments["common_name"],
-                password=arguments.get("password")
-            )
-            
-            result = kv_manager.import_certificate(
-                arguments["name"],
-                pfx_bytes,
-                arguments.get("password")
-            )
-            
-            if result["success"]:
-                message = _format_certificate_import_result(
-                    result,
-                    f"✅ 자체 서명 인증서 생성 및 import 완료\n인증서: '{result['name']}'\nCN: {arguments['common_name']}\nThumbprint: {thumbprint}"
-                )
-                return [TextContent(type="text", text=message)]
-            else:
-                return [TextContent(type="text", text=f"❌ {result['error']}")]
         
         elif name == "get_certificate": 
             result = kv_manager.get_certificate(arguments["name"])
@@ -1901,12 +1867,13 @@ AI: [select_keyvault] ✅
 **장점:**
 - 파일 경로만 제공하면 Agent가 직접 읽어서 처리
 
-### 6. 파일 내용을 드래그해서 등록
+### 6. 파일 내용을 직접 제공하여 등록
 **도구:** `decode_and_import_certificate`
 
 **사용 예시:**
-- Cursor에서 파일을 드래그하여 내용 제공
-- Agent가 자동으로 형식 감지 후 처리
+- 인증서 파일 내용을 텍스트 또는 base64로 직접 제공
+- Agent가 자동으로 형식 감지 (PEM/DER/CRT) 후 처리
+- 파일 내용을 복사해서 붙여넣기 하거나 base64 인코딩된 내용 제공 가능
 
 ### 7. 체인 인증서 포함 등록
 **도구:** `import_certificate_with_chain` 또는 `import_certificate_with_auto_chain`
@@ -1919,12 +1886,6 @@ AI: [select_keyvault] ✅
 **자동 체인 감지:**
 - `import_certificate_with_auto_chain` 사용 시
 - 같은 디렉토리의 체인 인증서 파일을 자동으로 찾아서 포함
-
-### 8. 자체 서명 인증서 생성
-**도구:** `generate_self_signed_cert`
-
-**사용 예시:**
-- "테스트용 자체 서명 인증서 생성해줘: common_name='example.com'"
 
 ## 🔍 조회 방법
 

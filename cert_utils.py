@@ -386,66 +386,6 @@ class CertificateUtils:
         
         return pfx_bytes
     
-    # ===== 자체 서명 인증서 생성 =====
-    
-    @staticmethod
-    def generate_self_signed_cert(
-        common_name: str = "test-cert",
-        password: Optional[str] = None
-    ) -> Tuple[bytes, str]:
-        """자체 서명 인증서 생성 (테스트용)"""
-        
-        # 개인키 생성
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        
-        # 인증서 정보
-        subject = issuer = x509.Name([
-            x509.NameAttribute(x509.NameOID.COUNTRY_NAME, "KR"),
-            x509.NameAttribute(x509.NameOID.STATE_OR_PROVINCE_NAME, "Seoul"),
-            x509.NameAttribute(x509.NameOID. ORGANIZATION_NAME, "Test Org"),
-            x509.NameAttribute(x509.NameOID.COMMON_NAME, common_name),
-        ])
-        
-        # 인증서 생성
-        cert = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            private_key.public_key()
-        ).serial_number(
-            x509.random_serial_number()
-        ).not_valid_before(
-            datetime.datetime. utcnow()
-        ).not_valid_after(
-            datetime.datetime.utcnow() + datetime.timedelta(days=365)
-        ).add_extension(
-            x509.SubjectAlternativeName([x509.DNSName("localhost")]),
-            critical=False,
-        ).sign(private_key, hashes.SHA256(), default_backend())
-        
-        # PFX로 변환
-        if password:
-            encryption = serialization.BestAvailableEncryption(password.encode())
-        else:
-            encryption = serialization.NoEncryption()
-        
-        pfx_bytes = pkcs12.serialize_key_and_certificates(
-            name=common_name.encode(),
-            key=private_key,
-            cert=cert,
-            cas=None,
-            encryption_algorithm=encryption
-        )
-        
-        # Thumbprint 계산
-        thumbprint = cert.fingerprint(hashes.SHA1()).hex()
-        
-        return pfx_bytes, thumbprint
     
     # ===== 유틸리티 =====
     

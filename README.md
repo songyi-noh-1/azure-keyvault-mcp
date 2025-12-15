@@ -15,7 +15,6 @@
   - 인증서 형식 자동 변환 (PEM/CRT → PFX)
   - 인증서 체인 import
   - 인증서 조회/목록/삭제
-  - 자체 서명 인증서 생성
   - **신규 인증서 추가 시 Application Gateway 등록 제안**
 
 - **Application Gateway 관리**
@@ -46,8 +45,7 @@
 ```
 You: ssl 인증서 교체가 필요해
 
-AI: 
-✅ 인증 완료
+AI: ✅ 인증 완료
 📋 Key Vault 목록: 
 1. kv-prod-01
 2. kv-test-01
@@ -56,8 +54,7 @@ AI:
 
 You: kv-prod-01
 
-AI:
-✅ kv-prod-01 선택됨
+AI: ✅ kv-prod-01 선택됨
 📋 현재 인증서:
 1. ssl-cert-2024 (만료: 2025-06-30)
 2. api-cert (만료: 2025-12-31)
@@ -66,13 +63,11 @@ AI:
 
 You: ssl-cert-2024
 
-AI:
-새 인증서 파일 형식이 무엇인가요?  (PFX/PEM/CRT)
+AI: 새 인증서 파일 형식이 무엇인가요?  (PFX/PEM/CRT)
 
 You: PFX 파일 있어
 
-AI:
-PFX 파일을 base64로 인코딩해주세요: 
+AI: PFX 파일을 base64로 인코딩해주세요: 
 ```bash
 base64 -i new-cert.pfx | pbcopy
 ```
@@ -81,8 +76,7 @@ base64 -i new-cert.pfx | pbcopy
 
 You: [base64 내용], 비밀번호는 "pass123"
 
-AI: 
-✅ 인증서 'ssl-cert-2024' 교체 완료! 
+AI: ✅ 인증서 'ssl-cert-2024' 교체 완료! 
 Thumbprint: a1b2c3d4... 
 만료일: 2026-12-31
 ```
@@ -92,8 +86,7 @@ Thumbprint: a1b2c3d4...
 ```
 You: db-password secret 값 알려줘
 
-AI:
-[자동으로 Key Vault 선택되어 있다면]
+AI: [자동으로 Key Vault 선택되어 있다면]
 🔐 Secret 'db-password'
 값: MySecretPassword123
 버전: abc123
@@ -105,8 +98,7 @@ AI:
 ```
 You: kv-prod의 "api-key"로 "xyz789" secret 등록해줘
 
-AI:
-[select_keyvault 자동 실행]
+AI: [select_keyvault 자동 실행]
 [set_secret 자동 실행]
 ✅ Secret 'api-key' 저장 완료
 버전: def456
@@ -120,8 +112,7 @@ You: 다음 secret들을 한 번에 등록해줘:
 - api-key: "abc123"
 - jwt-secret: "secret-key"
 
-AI:
-[select_keyvault 자동 실행]
+AI: [select_keyvault 자동 실행]
 [set_secrets 자동 실행]
 ✅ 여러 Secret 등록 결과
 
@@ -140,8 +131,7 @@ AI:
 ```
 You: 새로운 SSL 인증서를 Key Vault에 등록해줘
 
-AI:
-✅ 인증서 'new-ssl-cert' import 완료
+AI: ✅ 인증서 'new-ssl-cert' import 완료
 Thumbprint: a1b2c3d4...
 
 💡 이 인증서를 Application Gateway의 SSL 인증서로도 등록하시겠어요?
@@ -149,8 +139,7 @@ Thumbprint: a1b2c3d4...
 
 You: 응, 등록해줘
 
-AI:
-✅ SSL 인증서 added 완료
+AI: ✅ SSL 인증서 added 완료
 - 인증서 이름: new-ssl-cert
 - Key Vault 인증서: new-ssl-cert
 - Key Vault: kv-prod-01
@@ -164,8 +153,7 @@ AI:
 ```
 You: appgw에 등록된 TLS 인증서 목록 알려줘
 
-AI:
-📋 총 2개의 SSL 인증서:
+AI: 📋 총 2개의 SSL 인증서:
 - tempkey
   - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
   - Provisioning State: Succeeded
@@ -176,8 +164,7 @@ AI:
 ```
 You: 새로운 SSL 인증서를 Key Vault에 등록해줘
 
-AI:
-✅ 인증서 'new-ssl-cert' import 완료
+AI: ✅ 인증서 'new-ssl-cert' import 완료
 Thumbprint: a1b2c3d4...
 
 💡 이 인증서를 Application Gateway의 SSL 인증서로도 등록하시겠어요?
@@ -185,8 +172,7 @@ Thumbprint: a1b2c3d4...
 
 You: 응, 등록해줘
 
-AI:
-✅ SSL 인증서 added 완료
+AI: ✅ SSL 인증서 added 완료
 - 인증서 이름: new-ssl-cert
 - Key Vault 인증서: new-ssl-cert
 - Key Vault: kv-prod-01
@@ -200,8 +186,7 @@ AI:
 ```
 You: appgw에 등록된 TLS 인증서 목록 알려줘
 
-AI:
-📋 총 2개의 SSL 인증서:
+AI: 📋 총 2개의 SSL 인증서:
 - tempkey
   - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
   - Provisioning State: Succeeded
@@ -813,9 +798,8 @@ $config | ConvertTo-Json -Depth 10
 | | import_certificate_with_chain | 체인 포함 import |
 | | import_certificate_from_files | 로컬 파일 경로로부터 import (PEM, CRT, PFX 지원) |
 | | import_pfx_from_file | 로컬 PFX 파일로부터 직접 import |
-| | decode_and_import_certificate | 드래그한 파일 내용 자동 감지 후 import |
+| | decode_and_import_certificate | 파일 내용(텍스트/base64) 자동 감지 후 import |
 | | import_certificate_with_auto_chain | 파일 기반 인증서 import (체인 자동 감지) |
-| | generate_self_signed_cert | 자체 서명 인증서 생성 |
 | | get_certificate | 인증서 조회 |
 | | list_certificates | 인증서 목록 |
 | | delete_certificate | 인증서 삭제 |
