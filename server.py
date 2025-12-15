@@ -138,16 +138,18 @@ async def handle_list_tools():
         ),
         Tool(
             name="convert_pem_to_pfx_and_import",
-            description="PEM 형식 인증서를 PFX로 변환 후 Key Vault에 등록. 중요: 파일 내용을 출력하지 말고 이 도구에 직접 전달하세요.",
+            description="PEM 형식 인증서를 PFX로 변환 후 Key Vault에 등록. 파일 경로가 제공되면 직접 읽어서 처리하고, 없을 때만 base64를 사용합니다. 중요: 파일 내용을 출력하지 말고 이 도구에 직접 전달하세요.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "인증서 이름"},
-                    "cert_pem_base64": {"type": "string", "description": "인증서 PEM (base64 인코딩). 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
-                    "key_pem_base64": {"type": "string", "description": "개인키 PEM (base64 인코딩). 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
+                    "cert_path": {"type": "string", "description": "인증서 PEM 파일 경로 (우선 사용). Claude Desktop에서 첨부한 파일의 경로를 제공하세요."},
+                    "key_path": {"type": "string", "description": "개인키 PEM 파일 경로 (우선 사용). Claude Desktop에서 첨부한 파일의 경로를 제공하세요."},
+                    "cert_pem_base64": {"type": "string", "description": "인증서 PEM (base64 인코딩). cert_path가 없을 때만 사용. 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
+                    "key_pem_base64": {"type": "string", "description": "개인키 PEM (base64 인코딩). key_path가 없을 때만 사용. 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
                     "password": {"type": "string", "description": "PFX 비밀번호 (옵션)"}
                 },
-                "required": ["name", "cert_pem_base64", "key_pem_base64"]
+                "required": ["name"]
             }
         ),
         Tool(
@@ -272,13 +274,15 @@ async def handle_list_tools():
         ),
         Tool(
             name="decode_and_import_certificate",
-            description="파일 내용(텍스트 또는 base64)을 받아서 자동으로 형식 판단 후 import. 중요: cat 명령어로 파일 내용을 출력하지 말고, 이 도구에 직접 내용을 전달하세요.",
+            description="파일 경로 또는 파일 내용(텍스트 또는 base64)을 받아서 자동으로 형식 판단 후 import. 파일 경로가 제공되면 직접 읽어서 처리하고, 없을 때만 파일 내용을 사용합니다. 중요: cat 명령어로 파일 내용을 출력하지 말고, 이 도구에 직접 경로나 내용을 전달하세요.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Key Vault에 저장할 이름"},
-                    "cert_content": {"type": "string", "description": "인증서 파일 내용 (텍스트 또는 base64). 중요: cat 명령어를 사용하여 내용을 출력하지 말고, 파일에서 읽은 내용을 이 파라미터로 직접 전달하세요."},
-                    "key_content": {"type": "string", "description": "개인키 파일 내용 (옵션, 텍스트 또는 base64). 중요: 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
+                    "cert_path": {"type": "string", "description": "인증서 파일 경로 (우선 사용). Claude Desktop에서 첨부한 파일의 경로를 제공하세요."},
+                    "key_path": {"type": "string", "description": "개인키 파일 경로 (옵션, 우선 사용). Claude Desktop에서 첨부한 파일의 경로를 제공하세요."},
+                    "cert_content": {"type": "string", "description": "인증서 파일 내용 (텍스트 또는 base64). cert_path가 없을 때만 사용. 중요: cat 명령어를 사용하여 내용을 출력하지 말고, 파일에서 읽은 내용을 이 파라미터로 직접 전달하세요."},
+                    "key_content": {"type": "string", "description": "개인키 파일 내용 (옵션, 텍스트 또는 base64). key_path가 없을 때만 사용. 중요: 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
                     "chain_contents": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -286,7 +290,7 @@ async def handle_list_tools():
                     },
                     "password": {"type": "string", "description": "비밀번호 (옵션)"}
                 },
-                "required": ["name", "cert_content"]
+                "required": ["name"]
             }
         ),
         
@@ -821,17 +825,43 @@ async def handle_call_tool(name: str, arguments: dict):
         
         elif name == "convert_pem_to_pfx_and_import":
             try:
-                # base64 디코딩
-                cert_pem_bytes = base64.b64decode(arguments["cert_pem_base64"])
-                key_pem_bytes = base64.b64decode(arguments["key_pem_base64"])
                 password = arguments.get("password")
                 
-                # 임시 파일 없이 직접 변환 (더 빠름)
-                pfx_bytes = CertificateUtils.convert_pem_bytes_to_pfx(
-                    cert_pem_bytes,
-                    key_pem_bytes,
-                    password
-                )
+                # 파일 경로가 제공되면 직접 읽어서 처리 (우선)
+                cert_path = arguments.get("cert_path")
+                key_path = arguments.get("key_path")
+                
+                if cert_path and key_path:
+                    # 파일 경로로 직접 처리 (더 효율적)
+                    if not os.path.exists(cert_path):
+                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                    if not os.path.exists(key_path):
+                        return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                    
+                    # 파일을 직접 읽어서 PFX로 변환
+                    pfx_bytes = CertificateUtils.convert_pem_to_pfx(
+                        cert_path,
+                        key_path,
+                        password
+                    )
+                else:
+                    # base64로 제공된 경우 (하위 호환성)
+                    cert_pem_base64 = arguments.get("cert_pem_base64")
+                    key_pem_base64 = arguments.get("key_pem_base64")
+                    
+                    if not cert_pem_base64 or not key_pem_base64:
+                        return [TextContent(type="text", text="❌ cert_path/key_path 또는 cert_pem_base64/key_pem_base64 중 하나를 제공해야 합니다.")]
+                    
+                    # base64 디코딩
+                    cert_pem_bytes = base64.b64decode(cert_pem_base64)
+                    key_pem_bytes = base64.b64decode(key_pem_base64)
+                    
+                    # 임시 파일 없이 직접 변환
+                    pfx_bytes = CertificateUtils.convert_pem_bytes_to_pfx(
+                        cert_pem_bytes,
+                        key_pem_bytes,
+                        password
+                    )
                 
                 result = kv_manager.import_certificate(
                     arguments["name"],
@@ -840,10 +870,16 @@ async def handle_call_tool(name: str, arguments: dict):
                 )
                 
                 if result["success"]: 
-                    message = _format_certificate_import_result(
-                        result,
-                        f"✅ PEM → PFX 변환 및 import 완료\n인증서:  '{result['name']}'\nThumbprint: {result['thumbprint']}"
-                    )
+                    if cert_path and key_path:
+                        message = _format_certificate_import_result(
+                            result,
+                            f"✅ PEM → PFX 변환 및 import 완료 (파일 경로 직접 처리)\n인증서: '{result['name']}'\n파일: {os.path.basename(cert_path)}, {os.path.basename(key_path)}\nThumbprint: {result['thumbprint']}"
+                        )
+                    else:
+                        message = _format_certificate_import_result(
+                            result,
+                            f"✅ PEM → PFX 변환 및 import 완료\n인증서:  '{result['name']}'\nThumbprint: {result['thumbprint']}"
+                        )
                     return [TextContent(type="text", text=message)]
                 else: 
                     error_msg = _sanitize_error_message(result.get('error', '알 수 없는 오류'))
@@ -1157,12 +1193,102 @@ async def handle_call_tool(name: str, arguments: dict):
             import tempfile
             import re
             
-            cert_content = arguments["cert_content"]
+            cert_path = arguments.get("cert_path")
+            key_path = arguments.get("key_path")
+            cert_content = arguments.get("cert_content")
             key_content = arguments.get("key_content")
             chain_contents = arguments.get("chain_contents", [])
             password = arguments.get("password")
             
             try:
+                # 파일 경로가 제공되면 직접 읽어서 처리 (우선)
+                if cert_path:
+                    if not os.path.exists(cert_path):
+                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                    
+                    # 파일 경로로 직접 처리
+                    if key_path:
+                        if not os.path.exists(key_path):
+                            return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                        
+                        # 체인이 있는 경우
+                        if chain_contents:
+                            chain_paths = []
+                            for i, chain_content in enumerate(chain_contents):
+                                # 체인도 파일 경로일 수 있음
+                                if os.path.exists(chain_content):
+                                    chain_paths.append(chain_content)
+                                else:
+                                    # 체인 내용을 임시 파일로 저장
+                                    if chain_content.strip().startswith("-----BEGIN"):
+                                        chain_text = chain_content
+                                    else:
+                                        try:
+                                            chain_bytes = base64.b64decode(chain_content)
+                                            chain_text = chain_bytes.decode('utf-8', errors='ignore')
+                                        except:
+                                            chain_text = chain_content
+                                    
+                                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=f"_chain{i}.pem") as chain_file:
+                                        chain_file.write(chain_text)
+                                        chain_paths.append(chain_file.name)
+                            
+                            pfx_bytes = CertificateUtils.convert_with_chain_to_pfx(
+                                cert_path,
+                                key_path,
+                                chain_paths,
+                                password
+                            )
+                            
+                            # 임시 파일 정리
+                            for chain_path in chain_paths:
+                                if not os.path.exists(chain_path) or chain_path not in chain_contents:
+                                    try:
+                                        os.unlink(chain_path)
+                                    except:
+                                        pass
+                        else:
+                            pfx_bytes = CertificateUtils.convert_pem_to_pfx(
+                                cert_path,
+                                key_path,
+                                password
+                            )
+                        
+                        result = kv_manager.import_certificate(
+                            arguments["name"],
+                            pfx_bytes,
+                            password
+                        )
+                        
+                        if result["success"]:
+                            chain_info = f"({len(chain_contents)}개 중간 인증서 포함)" if chain_contents else ""
+                            return [TextContent(type="text", text=f"✅ 인증서 파일 경로 직접 처리 및 import 완료 {chain_info}\n인증서: '{result['name']}'\n파일: {os.path.basename(cert_path)}, {os.path.basename(key_path)}\nThumbprint: {result['thumbprint']}")]
+                        else:
+                            return [TextContent(type="text", text=f"❌ {result['error']}")]
+                    else:
+                        # cert만 있고 key가 없는 경우 (PFX 파일일 수 있음)
+                        cert_ext = os.path.splitext(cert_path)[1].lower()
+                        if cert_ext in ['.pfx', '.p12']:
+                            with open(cert_path, 'rb') as f:
+                                pfx_bytes = f.read()
+                            
+                            result = kv_manager.import_certificate(
+                                arguments["name"],
+                                pfx_bytes,
+                                password
+                            )
+                            
+                            if result["success"]:
+                                return [TextContent(type="text", text=f"✅ PFX 파일 import 완료\n파일: {os.path.basename(cert_path)}\nThumbprint: {result['thumbprint']}")]
+                            else:
+                                return [TextContent(type="text", text=f"❌ {result['error']}")]
+                        else:
+                            return [TextContent(type="text", text="❌ key_path가 필요합니다. PEM/CRT 형식은 개인키 파일이 필요합니다.")]
+                
+                # 파일 경로가 없으면 기존 방식 (파일 내용 처리)
+                if not cert_content:
+                    return [TextContent(type="text", text="❌ cert_path 또는 cert_content 중 하나를 제공해야 합니다.")]
+                
                 # cert_content가 base64인지 텍스트인지 판단
                 # PEM 형식은 보통 "-----BEGIN"로 시작
                 if cert_content.strip().startswith("-----BEGIN"):
