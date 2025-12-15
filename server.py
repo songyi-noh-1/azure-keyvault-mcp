@@ -376,6 +376,26 @@ async def handle_list_tools():
         ),
     ]
 
+def _sanitize_error_message(error_msg: str, max_length: int = 500) -> str:
+    """에러 메시지에서 민감한 정보(인증서 내용 등) 제거"""
+    if not error_msg:
+        return "알 수 없는 오류가 발생했습니다."
+    
+    # 인증서 내용 패턴 제거 (PEM 형식)
+    import re
+    
+    # -----BEGIN 부터 -----END 까지의 블록 제거
+    error_msg = re.sub(r'-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----', '[인증서 내용 생략]', error_msg, flags=re.MULTILINE)
+    
+    # base64 인코딩된 긴 문자열 제거 (50자 이상의 연속된 base64 문자)
+    error_msg = re.sub(r'[A-Za-z0-9+/=]{50,}', '[인코딩된 데이터 생략]', error_msg)
+    
+    # 길이 제한
+    if len(error_msg) > max_length:
+        error_msg = error_msg[:max_length] + "... (메시지가 길어 일부 생략되었습니다)"
+    
+    return error_msg
+
 def _format_certificate_import_result(result: dict, base_message: str) -> str:
     """인증서 import 결과 포맷팅 (신규 추가 시 Application Gateway 제안 포함)"""
     if not result.get("success"):
@@ -800,24 +820,16 @@ async def handle_call_tool(name: str, arguments: dict):
                 return [TextContent(type="text", text=f"❌ {result['error']}")]
         
         elif name == "convert_pem_to_pfx_and_import":
-            import tempfile
-            
-            cert_pem = base64.b64decode(arguments["cert_pem_base64"])
-            key_pem = base64.b64decode(arguments["key_pem_base64"])
-            password = arguments.get("password")
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as cert_file:
-                cert_file.write(cert_pem)
-                cert_path = cert_file.name
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as key_file:
-                key_file.write(key_pem)
-                key_path = key_file.name
-            
             try:
-                pfx_bytes = CertificateUtils.convert_pem_to_pfx(
-                    cert_path,
-                    key_path,
+                # base64 디코딩
+                cert_pem_bytes = base64.b64decode(arguments["cert_pem_base64"])
+                key_pem_bytes = base64.b64decode(arguments["key_pem_base64"])
+                password = arguments.get("password")
+                
+                # 임시 파일 없이 직접 변환 (더 빠름)
+                pfx_bytes = CertificateUtils.convert_pem_bytes_to_pfx(
+                    cert_pem_bytes,
+                    key_pem_bytes,
                     password
                 )
                 
@@ -834,11 +846,19 @@ async def handle_call_tool(name: str, arguments: dict):
                     )
                     return [TextContent(type="text", text=message)]
                 else: 
-                    return [TextContent(type="text", text=f"❌ {result['error']}")]
+                    error_msg = _sanitize_error_message(result.get('error', '알 수 없는 오류'))
+                    return [TextContent(type="text", text=f"❌ {error_msg}")]
             
-            finally:
-                os.unlink(cert_path)
-                os.unlink(key_path)
+            except ValueError as e:
+                error_msg = _sanitize_error_message(str(e))
+                if "암호화된" in error_msg or "비밀번호" in error_msg:
+                    return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: password 파라미터에 비밀번호를 제공해주세요.")]
+                return [TextContent(type="text", text=f"❌ 인증서 변환 실패: {error_msg}\n\n형식을 확인해주세요. PEM 형식이어야 합니다.")]
+            except Exception as e:
+                error_msg = _sanitize_error_message(str(e))
+                if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
+                    return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: 암호화된 파일입니다. password 파라미터에 비밀번호를 제공해주세요.")]
+                return [TextContent(type="text", text=f"❌ 인증서 처리 실패: {error_msg}\n\n형식을 확인해주세요. PEM 형식이어야 합니다.")]
         
         elif name == "get_certificate": 
             result = kv_manager.get_certificate(arguments["name"])
@@ -896,7 +916,8 @@ async def handle_call_tool(name: str, arguments: dict):
                     return [TextContent(type="text", text=f"❌ {result['error']}")]
             
             except Exception as e:
-                return [TextContent(type="text", text=f"❌ 변환 실패: {str(e)}")]
+                error_msg = _sanitize_error_message(str(e))
+                return [TextContent(type="text", text=f"❌ 변환 실패: {error_msg}")]
         
         elif name == "import_bundle_certificate":
             bundle_pem_bytes = base64.b64decode(arguments["bundle_pem_base64"])
@@ -924,7 +945,8 @@ async def handle_call_tool(name: str, arguments: dict):
                     return [TextContent(type="text", text=f"❌ {result['error']}")]
             
             except Exception as e: 
-                return [TextContent(type="text", text=f"❌ 변환 실패: {str(e)}")]
+                error_msg = _sanitize_error_message(str(e))
+                return [TextContent(type="text", text=f"❌ 변환 실패: {error_msg}")]
         
         
 
@@ -983,7 +1005,8 @@ async def handle_call_tool(name: str, arguments: dict):
                         os.unlink(chain_path)
             
             except Exception as e:
-                return [TextContent(type="text", text=f"❌ 변환 실패: {str(e)}")]
+                error_msg = _sanitize_error_message(str(e))
+                return [TextContent(type="text", text=f"❌ 변환 실패: {error_msg}")]
         
         elif name == "detect_certificate_format":
             cert_bytes = base64.b64decode(arguments["cert_base64"])
@@ -999,7 +1022,8 @@ async def handle_call_tool(name: str, arguments: dict):
                     return [TextContent(type="text", text=f"❓ 알 수 없는 형식\n첫 바이트: {cert_bytes[:20].hex()}")]
             
             except Exception as e:
-                return [TextContent(type="text", text=f"❌ 형식 감지 실패:  {str(e)}")]
+                error_msg = _sanitize_error_message(str(e))
+                return [TextContent(type="text", text=f"❌ 형식 감지 실패: {error_msg}")]
 
         elif name == "import_certificate_from_files":
             import os
@@ -1087,12 +1111,12 @@ async def handle_call_tool(name: str, arguments: dict):
                             return [TextContent(type="text", text=f"❌ {result['error']}")]
             
             except ValueError as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 if "암호화된" in error_msg or "비밀번호" in error_msg:
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: password 파라미터에 비밀번호를 제공해주세요.\n예: import_certificate_from_files(name='...', cert_path='...', key_path='...', password='your_password')")]
                 return [TextContent(type="text", text=f"❌ 파일 처리 실패: {error_msg}")]
             except Exception as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 # PFX 비밀번호 관련 오류 확인
                 if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: PFX 파일이 암호화되어 있습니다. password 파라미터에 비밀번호를 제공해주세요.")]
@@ -1123,7 +1147,7 @@ async def handle_call_tool(name: str, arguments: dict):
                     return [TextContent(type="text", text=f"❌ {result['error']}")]
             
             except Exception as e: 
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 # PFX 비밀번호 관련 오류 확인
                 if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: PFX 파일이 암호화되어 있습니다. password 파라미터에 비밀번호를 제공해주세요.")]
@@ -1252,23 +1276,23 @@ async def handle_call_tool(name: str, arguments: dict):
                             return [TextContent(type="text", text=f"❌ {result['error']}")]
                     
                     except ValueError as e:
-                        error_msg = str(e)
+                        error_msg = _sanitize_error_message(str(e))
                         if "암호화된" in error_msg or "비밀번호" in error_msg:
                             return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: password 파라미터에 비밀번호를 제공해주세요.")]
                         return [TextContent(type="text", text=f"❌ 인증서 처리 실패: {error_msg}\n\n형식을 확인해주세요. PEM, CRT, 또는 PFX 형식을 지원합니다.")]
                     except Exception as e:
-                        error_msg = str(e)
+                        error_msg = _sanitize_error_message(str(e))
                         if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
                             return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: 암호화된 파일입니다. password 파라미터에 비밀번호를 제공해주세요.")]
                         return [TextContent(type="text", text=f"❌ 인증서 처리 실패: {error_msg}\n\n형식을 확인해주세요. PEM, CRT, 또는 PFX 형식을 지원합니다.")]
             
             except ValueError as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 if "암호화된" in error_msg or "비밀번호" in error_msg:
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: password 파라미터에 비밀번호를 제공해주세요.")]
                 return [TextContent(type="text", text=f"❌ 인증서 디코딩 실패: {error_msg}")]
             except Exception as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: 암호화된 파일입니다. password 파라미터에 비밀번호를 제공해주세요.")]
                 return [TextContent(type="text", text=f"❌ 인증서 디코딩 실패: {error_msg}")]
@@ -1448,19 +1472,15 @@ async def handle_call_tool(name: str, arguments: dict):
                             return [TextContent(type="text", text=f"❌ {result['error']}")]
             
             except ValueError as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 if "암호화된" in error_msg or "비밀번호" in error_msg:
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: password 파라미터에 비밀번호를 제공해주세요.")]
-                import traceback
-                error_detail = traceback.format_exc()
-                return [TextContent(type="text", text=f"❌ 파일 처리 실패: {error_msg}\n\n상세:\n{error_detail}")]
+                return [TextContent(type="text", text=f"❌ 파일 처리 실패: {error_msg}\n\n형식을 확인해주세요. PEM, CRT 형식을 지원합니다.")]
             except Exception as e:
-                error_msg = str(e)
+                error_msg = _sanitize_error_message(str(e))
                 if "password" in error_msg.lower() or "비밀번호" in error_msg.lower():
                     return [TextContent(type="text", text=f"❌ {error_msg}\n\n💡 해결 방법: 암호화된 파일입니다. password 파라미터에 비밀번호를 제공해주세요.")]
-                import traceback
-                error_detail = traceback.format_exc()
-                return [TextContent(type="text", text=f"❌ 파일 처리 실패: {error_msg}\n\n상세:\n{error_detail}")]
+                return [TextContent(type="text", text=f"❌ 파일 처리 실패: {error_msg}\n\n형식을 확인해주세요. PEM, CRT 형식을 지원합니다.")]
         
         elif name == "list_application_gateways":
             if not auth_manager.is_authenticated:

@@ -85,14 +85,23 @@ class CertificateUtils:
         # 인증서 로드
         cert = x509.load_pem_x509_certificate(cert_pem_bytes, default_backend())
         
+        # 암호화 여부 확인
+        is_encrypted = CertificateUtils._is_encrypted_key(key_pem_bytes)
+        if is_encrypted and not pfx_password:
+            raise ValueError("🔒 암호화된 개인키 파일입니다. 비밀번호(password)를 제공해주세요.")
+        
         # 개인키 로드
         try:
-            key = serialization. load_pem_private_key(
+            # 암호화된 키 시도
+            key = serialization.load_pem_private_key(
                 key_pem_bytes,
                 password=pfx_password.encode() if pfx_password else None,
                 backend=default_backend()
             )
-        except TypeError:
+        except (ValueError, TypeError) as e:
+            if is_encrypted:
+                raise ValueError(f"🔒 암호화된 키 파일의 비밀번호가 올바르지 않습니다: {str(e)}")
+            # 암호화 안 된 키
             key = serialization.load_pem_private_key(
                 key_pem_bytes,
                 password=None,
@@ -385,7 +394,6 @@ class CertificateUtils:
         )
         
         return pfx_bytes
-    
     
     # ===== 유틸리티 =====
     
