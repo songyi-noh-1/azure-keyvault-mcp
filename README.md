@@ -206,7 +206,7 @@ az login
 
 **macOS/Linux:**
 ```bash
-git clone https://github.com/songyi-noh/azure-keyvault-mcp.git
+git clone https://github.com/songyi-noh-1/azure-keyvault-mcp.git
 cd azure-keyvault-mcp
 python3 -m venv venv
 source venv/bin/activate
@@ -215,17 +215,10 @@ pip install -r requirements.txt
 
 **Windows:**
 ```powershell
-# 1단계: 프로젝트 클론
-git clone https://github.com/songyi-noh/azure-keyvault-mcp.git
+git clone https://github.com/songyi-noh-1/azure-keyvault-mcp.git
 cd azure-keyvault-mcp
-
-# 2단계: venv 생성 (프로젝트 폴더 안에 생성됨)
 python -m venv venv
-
-# 3단계: venv 활성화
 venv\Scripts\activate
-
-# 4단계: 필요한 패키지 설치
 pip install -r requirements.txt
 ```
 
@@ -285,12 +278,6 @@ pip list | grep azure
 ### Claude Desktop 설정
 
 Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
-
-> **💡 프로젝트별 규칙 설정:**
-> 
-> Cursor의 `.cursorrules`와 비슷하게, Claude Desktop에서도 프로젝트별 규칙을 설정할 수 있습니다:
-> - 프로젝트 루트에 `.claude` 파일을 생성하면 Claude Desktop이 자동으로 인식합니다
-> - `.cursorrules` 파일과 동일한 내용을 `.claude` 파일로 복사하여 사용할 수 있습니다
 
 **macOS:**
 
@@ -393,158 +380,10 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
 > - 지정한 디렉터리 안에 있는 파일만 MCP 서버가 읽을 수 있습니다
 > - 따라서 인증서 파일도 지정한 디렉터리 안에 넣어두어야 합니다
 
-> **💡 Windows에서 슬래시(`/`) 사용 권장:**
-> 
-> Windows에서도 슬래시를 사용할 수 있으며, 백슬래시 이스케이프 문제를 피할 수 있습니다.
-
-### 🔤 Windows에서 한글 깨짐 문제 해결
-
-**문제:** Claude Desktop MCP 로그에서 한글이 깨져서 표시되는 경우
-
-**해결 방법:**
-
-1. **Windows 시스템 레벨 UTF-8 설정 (권장):**
-   - Windows 10 버전 1903 이상에서 지원
-   - 설정 → 시간 및 언어 → 언어 → 관리 언어 설정 → 시스템 로캘 변경
-   - "Beta: 세계 언어 지원에 UTF-8 사용" 체크
-   - 재부팅 필요
-
-2. **PowerShell에서 UTF-8 설정:**
-   ```powershell
-   # PowerShell 프로필에 추가 (한 번만 실행)
-   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-   chcp 65001
-   ```
-
-3. **환경 변수 설정 (시스템 전역):**
-   - 제어판 → 시스템 → 고급 시스템 설정 → 환경 변수
-   - 새로 만들기:
-     - 변수 이름: `PYTHONIOENCODING`
-     - 변수 값: `utf-8`
-   - 또는 PowerShell에서:
-     ```powershell
-     [System.Environment]::SetEnvironmentVariable("PYTHONIOENCODING", "utf-8", "User")
-     ```
-
-4. **MCP 서버 코드 자동 설정:**
-   - 서버 코드에 이미 Windows 한글 인코딩 설정이 포함되어 있습니다
-   - 자동으로 UTF-8 모드로 설정됩니다
-   - 추가 설정 없이도 대부분의 경우 작동합니다
-
-**확인 방법:**
-- Claude Desktop을 재시작한 후 MCP 로그에서 한글이 정상적으로 표시되는지 확인
-
-> **💡 Windows에서 경로 찾는 방법:**
-> 
-> 1. **PowerShell에서 경로 확인:**
->    ```powershell
->    cd C:\Users\YourName\azure-keyvault-mcp
->    (Get-Location).Path
->    ```
-> 
-> 2. **또는 파일 탐색기에서:**
->    - 프로젝트 폴더를 열고 주소창을 클릭하면 전체 경로가 표시됩니다
->    - 예: `C:\Users\YourName\azure-keyvault-mcp`
-> 
-> 3. **설정 파일 예시 (실제 경로):**
->    ```json
->    {
->      "mcpServers": {
->        "azure-keyvault": {
->          "command": "C:\\Users\\YourName\\azure-keyvault-mcp\\venv\\Scripts\\python.exe",
->          "args": ["C:\\Users\\YourName\\azure-keyvault-mcp\\server.py", "C:\\Users\\YourName\\azure-keyvault-mcp"]
->        }
->      }
->    }
->    ```
-> 
->    > **중요:** Windows 경로에서는 백슬래시(`\`)를 두 개(`\\`)로 이스케이프해야 합니다. `args` 배열의 두 번째 요소로 디렉터리 경로를 추가하세요.
-
-### ⚠️ Windows에서 "지정된 경로를 찾을 수 없다" 오류 해결
-
-**문제 진단:**
-
-1. **Python 실행 파일 경로 확인:**
-   ```powershell
-   # 프로젝트 폴더에서 실행
-   cd C:\Users\YourName\azure-keyvault-mcp
-   
-   # venv의 Python이 존재하는지 확인
-   Test-Path venv\Scripts\python.exe
-   # True가 나와야 함
-   ```
-
-2. **server.py 파일 경로 확인:**
-   ```powershell
-   Test-Path server.py
-   # True가 나와야 함
-   ```
-
-3. **경로에 공백이나 특수문자가 있는지 확인:**
-   - 경로에 공백이 있으면 따옴표로 감싸야 할 수 있습니다
-   - 예: `C:\Users\My Name\azure-keyvault-mcp` → 경로에 공백 있음
-
-**해결 방법:**
-
-1. **슬래시 사용 (권장):**
-   ```json
-   {
-     "mcpServers": {
-       "azure-keyvault": {
-         "command": "C:/Users/YourName/azure-keyvault-mcp/venv/Scripts/python.exe",
-         "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py", "C:/Users/YourName/azure-keyvault-mcp"]
-       }
-     }
-   }
-   ```
-   > Windows에서도 슬래시(`/`)를 사용할 수 있습니다! `args` 배열의 두 번째 요소로 디렉터리 경로를 추가하세요.
-
-2. **경로에 공백이 있는 경우:**
-   ```json
-   {
-     "mcpServers": {
-       "azure-keyvault": {
-         "command": "\"C:/Users/My Name/azure-keyvault-mcp/venv/Scripts/python.exe\"",
-         "args": ["C:/Users/My Name/azure-keyvault-mcp/server.py", "C:/Users/My Name/azure-keyvault-mcp"]
-       }
-     }
-   }
-   ```
-
-3. **venv가 제대로 생성되었는지 확인:**
-   ```powershell
-   # venv 재생성
-   Remove-Item -Recurse -Force venv
-   python -m venv venv
-   venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-4. **절대 경로 대신 상대 경로 사용 (프로젝트 폴더 기준):**
-   ```json
-   {
-     "mcpServers": {
-       "azure-keyvault": {
-         "command": "python",
-         "args": ["-m", "venv", "venv", "&&", "venv\\Scripts\\python.exe", "server.py"]
-       }
-     }
-   }
-   ```
-   > 이 방법은 작동하지 않을 수 있으므로 **절대 경로 사용을 권장**합니다.
-
-**가장 확실한 방법:**
-
-PowerShell에서 다음 명령으로 정확한 경로를 복사하세요:
-```powershell
-cd C:\Users\YourName\azure-keyvault-mcp
-$pythonPath = (Resolve-Path "venv\Scripts\python.exe").Path
-$serverPath = (Resolve-Path "server.py").Path
-Write-Host "Python: $pythonPath"
-Write-Host "Server: $serverPath"
-```
-
-출력된 경로를 그대로 설정 파일에 복사하되, 백슬래시를 슬래시로 변경하거나 `\\`로 이스케이프하세요.
+> **💡 팁:**
+> - Windows에서도 슬래시(`/`)를 사용할 수 있어 백슬래시 이스케이프 문제를 피할 수 있습니다
+> - 경로에 공백이 있으면 따옴표로 감싸세요
+> - PowerShell에서 `(Resolve-Path "venv\Scripts\python.exe").Path`로 정확한 경로 확인 가능
 
 **Linux:**
 
@@ -624,26 +463,7 @@ python3 -m json.tool ~/.config/Claude/claude_desktop_config.json
 python -m json.tool "$env:APPDATA\Claude\claude_desktop_config.json"
 ```
 
-#### 3. MCP 서버 수동 테스트
-
-설정이 올바른지 확인하기 위해 MCP 서버를 직접 실행해볼 수 있습니다:
-
-```bash
-# 프로젝트 폴더로 이동
-cd /절대경로/azure-keyvault-mcp
-
-# venv 활성화
-source venv/bin/activate  # macOS/Linux
-# 또는
-venv\Scripts\activate  # Windows
-
-# MCP 서버가 정상적으로 시작되는지 확인 (stdio 모드로 실행)
-python server.py
-```
-
-> ⚠️ **참고:** MCP 서버는 stdio 모드로 실행되므로, 직접 실행하면 대화형 입력을 기다립니다. 이것은 정상적인 동작입니다. `Ctrl+C`로 종료할 수 있습니다.
-
-#### 4. Claude Desktop에서 MCP 서버 확인
+#### 3. Claude Desktop에서 MCP 서버 확인
 
 1. **Claude Desktop 재시작**
    - 설정 파일을 수정한 후 반드시 Claude Desktop을 완전히 종료하고 다시 시작하세요.
@@ -653,47 +473,7 @@ python server.py
    - Claude에게 "Azure 인증 상태 확인해줘"라고 요청합니다.
    - MCP 서버가 정상적으로 연결되었다면 `check_azure_auth` 도구가 사용됩니다.
 
-3. **도구 목록 확인**
-   - Claude Desktop의 개발자 도구나 로그에서 MCP 서버가 등록되었는지 확인할 수 있습니다.
-   - 또는 "Azure Key Vault에서 사용 가능한 도구 목록을 보여줘"라고 요청해보세요.
-
-#### 5. 환경 변수 설정 (필요한 경우)
-
-특정 상황에서 환경 변수가 필요할 수 있습니다. Claude Desktop 설정 파일에서 환경 변수를 추가할 수 있습니다:
-
-**macOS/Linux:**
-```json
-{
-  "mcpServers": {
-    "azure-keyvault": {
-      "command": "/절대경로/azure-keyvault-mcp/venv/bin/python",
-      "args": ["/절대경로/azure-keyvault-mcp/server.py"],
-      "env": {
-        "PYTHONIOENCODING": "utf-8",
-        "AZURE_KEYVAULT_DISABLE_SSL_VERIFY": "0"
-      }
-    }
-  }
-}
-```
-
-**Windows:**
-```json
-{
-  "mcpServers": {
-    "azure-keyvault": {
-      "command": "C:/절대경로/azure-keyvault-mcp/venv/Scripts/python.exe",
-      "args": ["C:/절대경로/azure-keyvault-mcp/server.py"],
-      "env": {
-        "PYTHONIOENCODING": "utf-8",
-        "AZURE_KEYVAULT_DISABLE_SSL_VERIFY": "0"
-      }
-    }
-  }
-}
-```
-
-#### 6. 디버깅 및 트러블슈팅
+#### 4. 트러블슈팅
 
 **문제: MCP 서버가 Claude Desktop에 나타나지 않습니다**
 
@@ -722,93 +502,6 @@ python server.py
 2. **MCP 서버 로그 확인**
    - Claude Desktop의 개발자 도구나 콘솔에서 오류 메시지를 확인하세요.
    - 또는 터미널에서 직접 MCP 서버를 실행하여 오류를 확인할 수 있습니다.
-
-**문제: 경로에 공백이나 특수문자가 있는 경우**
-
-경로에 공백이 있거나 특수문자가 있는 경우, 따옴표로 감싸거나 슬래시(`/`)를 사용하세요:
-
-```json
-{
-  "mcpServers": {
-    "azure-keyvault": {
-      "command": "/Users/My Name/azure-keyvault-mcp/venv/bin/python",
-      "args": ["/Users/My Name/azure-keyvault-mcp/server.py"]
-    }
-  }
-}
-```
-
-또는 Windows에서는:
-
-```json
-{
-  "mcpServers": {
-    "azure-keyvault": {
-      "command": "C:/Users/My Name/azure-keyvault-mcp/venv/Scripts/python.exe",
-      "args": ["C:/Users/My Name/azure-keyvault-mcp/server.py"]
-    }
-  }
-}
-```
-
-#### 7. 빠른 설정 스크립트 (선택사항)
-
-프로젝트 폴더에서 실행하여 설정 파일 경로와 예시를 출력하는 스크립트를 만들 수 있습니다:
-
-**macOS/Linux (`setup_claude_desktop.sh`):**
-```bash
-#!/bin/bash
-PROJECT_DIR=$(pwd)
-PYTHON_PATH="$PROJECT_DIR/venv/bin/python"
-SERVER_PATH="$PROJECT_DIR/server.py"
-
-echo "📋 Claude Desktop 설정 정보:"
-echo ""
-echo "설정 파일 위치:"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    CONFIG_PATH="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
-    echo "  $CONFIG_PATH"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    CONFIG_PATH="$HOME/.config/Claude/claude_desktop_config.json"
-    echo "  $CONFIG_PATH"
-fi
-echo ""
-echo "설정 예시:"
-cat <<EOF
-{
-  "mcpServers": {
-    "azure-keyvault": {
-      "command": "$PYTHON_PATH",
-      "args": ["$SERVER_PATH"]
-    }
-  }
-}
-EOF
-```
-
-**Windows (`setup_claude_desktop.ps1`):**
-```powershell
-$projectDir = (Get-Location).Path
-$pythonPath = Join-Path $projectDir "venv\Scripts\python.exe"
-$serverPath = Join-Path $projectDir "server.py"
-$configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
-
-Write-Host "📋 Claude Desktop 설정 정보:" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "설정 파일 위치:"
-Write-Host "  $configPath"
-Write-Host ""
-Write-Host "설정 예시:"
-$config = @{
-    mcpServers = @{
-        "azure-keyvault" = @{
-            command = $pythonPath
-            args = @($serverPath)
-        }
-    }
-}
-$config | ConvertTo-Json -Depth 10
-```
 
 ## 🛠️ 지원 도구
 
