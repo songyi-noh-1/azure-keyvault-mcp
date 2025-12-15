@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import base64
+import binascii
 from mcp.server.models import InitializationOptions
 from mcp.server import NotificationOptions, Server
 from mcp.server.stdio import stdio_server
@@ -848,6 +849,9 @@ async def handle_call_tool(name: str, arguments: dict):
         
         elif name == "convert_pem_to_pfx_and_import":
             try:
+                # os 모듈이 필요하므로 명시적으로 확인
+                import os as os_module
+                
                 password = arguments.get("password")
                 
                 # 파일 경로가 제공되면 직접 읽어서 처리 (우선)
@@ -855,18 +859,33 @@ async def handle_call_tool(name: str, arguments: dict):
                 key_path = arguments.get("key_path")
                 
                 if cert_path and key_path:
+                    # 파일 경로 유효성 검사
+                    if not cert_path or not key_path:
+                        return [TextContent(type="text", text="❌ cert_path와 key_path가 모두 제공되어야 합니다.")]
+                    
                     # 파일 경로로 직접 처리 (더 효율적)
-                    if not os.path.exists(cert_path):
+                    if not os_module.path.exists(cert_path):
                         return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
-                    if not os.path.exists(key_path):
+                    if not os_module.path.exists(key_path):
                         return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
                     
+                    # 파일이 실제 파일인지 확인 (디렉토리가 아닌)
+                    if not os_module.path.isfile(cert_path):
+                        return [TextContent(type="text", text=f"❌ 인증서 경로가 파일이 아닙니다: {cert_path}")]
+                    if not os_module.path.isfile(key_path):
+                        return [TextContent(type="text", text=f"❌ 개인키 경로가 파일이 아닙니다: {key_path}")]
+                    
                     # 파일을 직접 읽어서 PFX로 변환
-                    pfx_bytes = CertificateUtils.convert_pem_to_pfx(
-                        cert_path,
-                        key_path,
-                        password
-                    )
+                    try:
+                        pfx_bytes = CertificateUtils.convert_pem_to_pfx(
+                            cert_path,
+                            key_path,
+                            password
+                        )
+                    except PermissionError as e:
+                        return [TextContent(type="text", text=f"❌ 파일 읽기 권한이 없습니다: {str(e)}")]
+                    except FileNotFoundError as e:
+                        return [TextContent(type="text", text=f"❌ 파일을 찾을 수 없습니다: {str(e)}")]
                 else:
                     # base64로 제공된 경우 (하위 호환성)
                     cert_pem_base64 = arguments.get("cert_pem_base64")
@@ -876,8 +895,15 @@ async def handle_call_tool(name: str, arguments: dict):
                         return [TextContent(type="text", text="❌ cert_path/key_path 또는 cert_pem_base64/key_pem_base64 중 하나를 제공해야 합니다.")]
                     
                     # base64 디코딩
-                    cert_pem_bytes = base64.b64decode(cert_pem_base64)
-                    key_pem_bytes = base64.b64decode(key_pem_base64)
+                    try:
+                        cert_pem_bytes = base64.b64decode(cert_pem_base64, validate=True)
+                    except Exception as e:
+                        return [TextContent(type="text", text=f"❌ 인증서 base64 디코딩 실패: {str(e)}\n\n올바른 base64 형식인지 확인해주세요.")]
+                    
+                    try:
+                        key_pem_bytes = base64.b64decode(key_pem_base64, validate=True)
+                    except Exception as e:
+                        return [TextContent(type="text", text=f"❌ 개인키 base64 디코딩 실패: {str(e)}\n\n올바른 base64 형식인지 확인해주세요.")]
                     
                     # 임시 파일 없이 직접 변환
                     pfx_bytes = CertificateUtils.convert_pem_bytes_to_pfx(
@@ -896,7 +922,7 @@ async def handle_call_tool(name: str, arguments: dict):
                     if cert_path and key_path:
                         message = _format_certificate_import_result(
                             result,
-                            f"✅ PEM → PFX 변환 및 import 완료 (파일 경로 직접 처리)\n인증서: '{result['name']}'\n파일: {os.path.basename(cert_path)}, {os.path.basename(key_path)}\nThumbprint: {result['thumbprint']}"
+                            f"✅ PEM → PFX 변환 및 import 완료 (파일 경로 직접 처리)\n인증서: '{result['name']}'\n파일: {os_module.path.basename(cert_path)}, {os_module.path.basename(key_path)}\nThumbprint: {result['thumbprint']}"
                         )
                     else:
                         message = _format_certificate_import_result(
@@ -1215,6 +1241,7 @@ async def handle_call_tool(name: str, arguments: dict):
         elif name == "decode_and_import_certificate":
             import tempfile
             import re
+            import os as os_module  # 명시적으로 import
             
             cert_path = arguments.get("cert_path")
             key_path = arguments.get("key_path")
@@ -1226,20 +1253,32 @@ async def handle_call_tool(name: str, arguments: dict):
             try:
                 # 파일 경로가 제공되면 직접 읽어서 처리 (우선)
                 if cert_path:
-                    if not os.path.exists(cert_path):
+                    if not cert_path or not cert_path.strip():
+                        return [TextContent(type="text", text="❌ cert_path가 비어있습니다.")]
+                    
+                    if not os_module.path.exists(cert_path):
                         return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                    
+                    if not os_module.path.isfile(cert_path):
+                        return [TextContent(type="text", text=f"❌ 인증서 경로가 파일이 아닙니다: {cert_path}")]
                     
                     # 파일 경로로 직접 처리
                     if key_path:
-                        if not os.path.exists(key_path):
+                        if not key_path or not key_path.strip():
+                            return [TextContent(type="text", text="❌ key_path가 비어있습니다.")]
+                        
+                        if not os_module.path.exists(key_path):
                             return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                        
+                        if not os_module.path.isfile(key_path):
+                            return [TextContent(type="text", text=f"❌ 개인키 경로가 파일이 아닙니다: {key_path}")]
                         
                         # 체인이 있는 경우
                         if chain_contents:
                             chain_paths = []
                             for i, chain_content in enumerate(chain_contents):
                                 # 체인도 파일 경로일 수 있음
-                                if os.path.exists(chain_content):
+                                if os_module.path.exists(chain_content):
                                     chain_paths.append(chain_content)
                                 else:
                                     # 체인 내용을 임시 파일로 저장
@@ -1265,9 +1304,9 @@ async def handle_call_tool(name: str, arguments: dict):
                             
                             # 임시 파일 정리
                             for chain_path in chain_paths:
-                                if not os.path.exists(chain_path) or chain_path not in chain_contents:
+                                if not os_module.path.exists(chain_path) or chain_path not in chain_contents:
                                     try:
-                                        os.unlink(chain_path)
+                                        os_module.unlink(chain_path)
                                     except:
                                         pass
                         else:
@@ -1285,12 +1324,12 @@ async def handle_call_tool(name: str, arguments: dict):
                         
                         if result["success"]:
                             chain_info = f"({len(chain_contents)}개 중간 인증서 포함)" if chain_contents else ""
-                            return [TextContent(type="text", text=f"✅ 인증서 파일 경로 직접 처리 및 import 완료 {chain_info}\n인증서: '{result['name']}'\n파일: {os.path.basename(cert_path)}, {os.path.basename(key_path)}\nThumbprint: {result['thumbprint']}")]
+                            return [TextContent(type="text", text=f"✅ 인증서 파일 경로 직접 처리 및 import 완료 {chain_info}\n인증서: '{result['name']}'\n파일: {os_module.path.basename(cert_path)}, {os_module.path.basename(key_path)}\nThumbprint: {result['thumbprint']}")]
                         else:
                             return [TextContent(type="text", text=f"❌ {result['error']}")]
                     else:
                         # cert만 있고 key가 없는 경우 (PFX 파일일 수 있음)
-                        cert_ext = os.path.splitext(cert_path)[1].lower()
+                        cert_ext = os_module.path.splitext(cert_path)[1].lower()
                         if cert_ext in ['.pfx', '.p12']:
                             with open(cert_path, 'rb') as f:
                                 pfx_bytes = f.read()
@@ -1302,7 +1341,7 @@ async def handle_call_tool(name: str, arguments: dict):
                             )
                             
                             if result["success"]:
-                                return [TextContent(type="text", text=f"✅ PFX 파일 import 완료\n파일: {os.path.basename(cert_path)}\nThumbprint: {result['thumbprint']}")]
+                                return [TextContent(type="text", text=f"✅ PFX 파일 import 완료\n파일: {os_module.path.basename(cert_path)}\nThumbprint: {result['thumbprint']}")]
                             else:
                                 return [TextContent(type="text", text=f"❌ {result['error']}")]
                         else:
@@ -1319,9 +1358,12 @@ async def handle_call_tool(name: str, arguments: dict):
                 else:
                     # base64로 디코딩 시도
                     try:
-                        cert_bytes = base64.b64decode(cert_content)
+                        cert_bytes = base64.b64decode(cert_content, validate=True)
                         cert_text = cert_bytes.decode('utf-8', errors='ignore')
-                    except:
+                    except (ValueError, binascii.Error):
+                        # base64 디코딩 실패 시 원본 텍스트로 간주
+                        cert_text = cert_content
+                    except Exception:
                         cert_text = cert_content
                 
                 # key_content 처리
@@ -1331,9 +1373,12 @@ async def handle_call_tool(name: str, arguments: dict):
                         key_text = key_content
                     else:
                         try:
-                            key_bytes = base64.b64decode(key_content)
+                            key_bytes = base64.b64decode(key_content, validate=True)
                             key_text = key_bytes.decode('utf-8', errors='ignore')
-                        except:
+                        except (ValueError, binascii.Error):
+                            # base64 디코딩 실패 시 원본 텍스트로 간주
+                            key_text = key_content
+                        except Exception:
                             key_text = key_content
                 
                 # 번들 PEM인지 확인 (cert와 key가 하나의 파일에 있는 경우)
@@ -1356,9 +1401,12 @@ async def handle_call_tool(name: str, arguments: dict):
                                     chain_text = chain_content
                                 else:
                                     try:
-                                        chain_bytes = base64.b64decode(chain_content)
+                                        chain_bytes = base64.b64decode(chain_content, validate=True)
                                         chain_text = chain_bytes.decode('utf-8', errors='ignore')
-                                    except:
+                                    except (ValueError, binascii.Error):
+                                        # base64 디코딩 실패 시 원본 텍스트로 간주
+                                        chain_text = chain_content
+                                    except Exception:
                                         chain_text = chain_content
                                 
                                 with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=f"_chain{i}.pem") as chain_file:
@@ -1374,7 +1422,7 @@ async def handle_call_tool(name: str, arguments: dict):
                             
                             # 임시 파일 정리
                             for chain_path in chain_paths:
-                                os.unlink(chain_path)
+                                os_module.unlink(chain_path)
                         else:
                             pfx_bytes = CertificateUtils.convert_pem_to_pfx(
                                 cert_path,
@@ -1395,9 +1443,17 @@ async def handle_call_tool(name: str, arguments: dict):
                             return [TextContent(type="text", text=f"❌ {result['error']}")]
                     
                     finally:
-                        os.unlink(cert_path)
-                        if key_path:
-                            os.unlink(key_path)
+                        # 임시 파일 정리 (실패해도 계속 진행)
+                        try:
+                            if cert_path and os_module.path.exists(cert_path):
+                                os_module.unlink(cert_path)
+                        except Exception:
+                            pass
+                        try:
+                            if key_path and os_module.path.exists(key_path):
+                                os_module.unlink(key_path)
+                        except Exception:
+                            pass
                 
                 else:
                     # 번들 PEM 또는 단일 파일인 경우
