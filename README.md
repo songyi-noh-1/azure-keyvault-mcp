@@ -370,6 +370,43 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
 > 
 > Windows에서도 슬래시를 사용할 수 있으며, 백슬래시 이스케이프 문제를 피할 수 있습니다.
 
+### 🔤 Windows에서 한글 깨짐 문제 해결
+
+**문제:** Claude Desktop MCP 로그에서 한글이 깨져서 표시되는 경우
+
+**해결 방법:**
+
+1. **Windows 시스템 레벨 UTF-8 설정 (권장):**
+   - Windows 10 버전 1903 이상에서 지원
+   - 설정 → 시간 및 언어 → 언어 → 관리 언어 설정 → 시스템 로캘 변경
+   - "Beta: 세계 언어 지원에 UTF-8 사용" 체크
+   - 재부팅 필요
+
+2. **PowerShell에서 UTF-8 설정:**
+   ```powershell
+   # PowerShell 프로필에 추가 (한 번만 실행)
+   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+   chcp 65001
+   ```
+
+3. **환경 변수 설정 (시스템 전역):**
+   - 제어판 → 시스템 → 고급 시스템 설정 → 환경 변수
+   - 새로 만들기:
+     - 변수 이름: `PYTHONIOENCODING`
+     - 변수 값: `utf-8`
+   - 또는 PowerShell에서:
+     ```powershell
+     [System.Environment]::SetEnvironmentVariable("PYTHONIOENCODING", "utf-8", "User")
+     ```
+
+4. **MCP 서버 코드 자동 설정:**
+   - 서버 코드에 이미 Windows 한글 인코딩 설정이 포함되어 있습니다
+   - 자동으로 UTF-8 모드로 설정됩니다
+   - 추가 설정 없이도 대부분의 경우 작동합니다
+
+**확인 방법:**
+- Claude Desktop을 재시작한 후 MCP 로그에서 한글이 정상적으로 표시되는지 확인
+
 > **💡 Windows에서 경로 찾는 방법:**
 > 
 > 1. **PowerShell에서 경로 확인:**

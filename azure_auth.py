@@ -6,13 +6,36 @@ from typing import Optional, List, Dict, Tuple
 
 # Windows에서 한글 출력을 위한 인코딩 설정
 if sys.platform == 'win32':
+    # 환경 변수를 먼저 설정 (가장 중요!)
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ['PYTHONLEGACYWINDOWSSTDIO'] = '0'  # Windows 10+ UTF-8 모드 활성화
+    
+    # Windows 코드 페이지를 UTF-8로 설정 (Python 3.7+)
+    try:
+        import locale
+        # UTF-8 locale 설정 시도
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    except (locale.Error, OSError):
+        try:
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except (locale.Error, OSError):
+            pass  # 실패해도 계속 진행
+    
     # stdout/stderr 인코딩 설정
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     if hasattr(sys.stderr, 'reconfigure'):
         sys.stderr.reconfigure(encoding='utf-8', errors='replace')
-    # 환경 변수 설정
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    
+    # Windows 콘솔 코드 페이지를 UTF-8로 설정 (가능한 경우)
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        # CP_UTF8 = 65001
+        kernel32.SetConsoleOutputCP(65001)
+        kernel32.SetConsoleCP(65001)
+    except (OSError, AttributeError):
+        pass  # 실패해도 계속 진행
 
 class AzureAuthManager: 
     """Azure 인증 및 구독 관리"""
