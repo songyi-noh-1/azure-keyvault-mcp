@@ -360,18 +360,17 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
   "mcpServers": {
     "azure-keyvault": {
       "command": "C:/Users/YourName/azure-keyvault-mcp/venv/Scripts/python.exe",
-      "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py"],
-      "baseDir": "C:/Users/YourName/azure-keyvault-mcp"
+      "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py", "C:/Users/YourName/azure-keyvault-mcp"]
     }
   }
 }
 ```
 
-> **⚠️ Windows에서 baseDir 필수:**
+> **⚠️ Windows에서 디렉터리 경로 필수:**
 > 
-> Windows에서 Claude MCP를 안전하게 사용하려면 `baseDir` 매개변수를 **반드시** 설정해야 합니다. 이는 접근 가능한 기본 디렉터리를 제한하여 보안을 강화합니다.
+> Windows에서 Claude MCP를 안전하게 사용하려면 `args` 배열에 **디렉터리 경로를 두 번째 인자로 추가**해야 합니다. 이는 접근 가능한 기본 디렉터리를 제한하여 보안을 강화합니다.
 > - **절대 경로를 사용해야 합니다** (상대 경로는 작동하지 않음)
-> - 프로젝트 디렉터리 경로를 그대로 사용하세요
+> - 프로젝트 디렉터리 경로를 `args` 배열의 두 번째 요소로 추가하세요
 > 
 > **📁 파일 업로드 사용 방법:**
 > 
@@ -384,17 +383,17 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
 >    - 예: `C:/Users/YourName/azure-keyvault-mcp/cert-temp/server.crt`
 >    - 예: `C:/Users/YourName/azure-keyvault-mcp/cert-temp/server.key`
 > 
-> 3. **Claude Desktop 설정 파일에 그 경로를 baseDir로 적기**
->    - `baseDir`에 프로젝트 디렉터리 경로를 적으면 됩니다
->    - 예: `"baseDir": "C:/Users/YourName/azure-keyvault-mcp"`
+> 3. **Claude Desktop 설정 파일의 args에 디렉터리 경로 추가**
+>    - `args` 배열에 프로젝트 디렉터리 경로를 두 번째 인자로 추가하세요
+>    - 예: `"args": ["C:/Users/YourName/azure-keyvault-mcp/server.py", "C:/Users/YourName/azure-keyvault-mcp"]`
 > 
 > 4. **Claude Desktop에서 파일 첨부**
 >    - `cert-temp/` 폴더에 넣어둔 파일을 첨부하면 정상 작동합니다
 > 
 > **왜 이렇게 해야 하나요?**
-> - `baseDir`는 보안을 위해 접근 가능한 디렉터리를 제한합니다
-> - `baseDir` 안에 있는 파일만 MCP 서버가 읽을 수 있습니다
-> - 따라서 인증서 파일도 `baseDir` 안에 넣어두어야 합니다
+> - `args`에 디렉터리 경로를 추가하면 보안을 위해 접근 가능한 디렉터리를 제한합니다
+> - 지정한 디렉터리 안에 있는 파일만 MCP 서버가 읽을 수 있습니다
+> - 따라서 인증서 파일도 지정한 디렉터리 안에 넣어두어야 합니다
 
 > **💡 Windows에서 슬래시(`/`) 사용 권장:**
 > 
@@ -455,14 +454,13 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
 >      "mcpServers": {
 >        "azure-keyvault": {
 >          "command": "C:\\Users\\YourName\\azure-keyvault-mcp\\venv\\Scripts\\python.exe",
->          "args": ["C:\\Users\\YourName\\azure-keyvault-mcp\\server.py"],
->          "baseDir": "C:\\Users\\YourName\\azure-keyvault-mcp"
+>          "args": ["C:\\Users\\YourName\\azure-keyvault-mcp\\server.py", "C:\\Users\\YourName\\azure-keyvault-mcp"]
 >        }
 >      }
 >    }
 >    ```
 > 
->    > **중요:** Windows 경로에서는 백슬래시(`\`)를 두 개(`\\`)로 이스케이프해야 합니다.
+>    > **중요:** Windows 경로에서는 백슬래시(`\`)를 두 개(`\\`)로 이스케이프해야 합니다. `args` 배열의 두 번째 요소로 디렉터리 경로를 추가하세요.
 
 ### ⚠️ Windows에서 "지정된 경로를 찾을 수 없다" 오류 해결
 
@@ -496,13 +494,12 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
      "mcpServers": {
        "azure-keyvault": {
          "command": "C:/Users/YourName/azure-keyvault-mcp/venv/Scripts/python.exe",
-         "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py"],
-         "baseDir": "C:/Users/YourName/azure-keyvault-mcp"
+         "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py", "C:/Users/YourName/azure-keyvault-mcp"]
        }
      }
    }
    ```
-   > Windows에서도 슬래시(`/`)를 사용할 수 있습니다!
+   > Windows에서도 슬래시(`/`)를 사용할 수 있습니다! `args` 배열의 두 번째 요소로 디렉터리 경로를 추가하세요.
 
 2. **경로에 공백이 있는 경우:**
    ```json
@@ -510,8 +507,7 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
      "mcpServers": {
        "azure-keyvault": {
          "command": "\"C:/Users/My Name/azure-keyvault-mcp/venv/Scripts/python.exe\"",
-         "args": ["C:/Users/My Name/azure-keyvault-mcp/server.py"],
-         "baseDir": "C:/Users/My Name/azure-keyvault-mcp"
+         "args": ["C:/Users/My Name/azure-keyvault-mcp/server.py", "C:/Users/My Name/azure-keyvault-mcp"]
        }
      }
    }
