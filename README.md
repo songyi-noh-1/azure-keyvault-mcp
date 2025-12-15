@@ -67,12 +67,10 @@ AI: 새 인증서 파일 형식이 무엇인가요?  (PFX/PEM/CRT)
 
 You: PFX 파일 있어
 
-AI: PFX 파일을 base64로 인코딩해주세요: 
-```bash
-base64 -i new-cert.pfx | pbcopy
-```
-그리고 붙여넣어 주세요. 
-비밀번호도 알려주세요.
+AI: PFX 파일을 base64로 인코딩해주세요:
+    base64 -i new-cert.pfx | pbcopy
+    그리고 붙여넣어 주세요. 
+    비밀번호도 알려주세요.
 
 You: [base64 내용], 비밀번호는 "pass123"
 
