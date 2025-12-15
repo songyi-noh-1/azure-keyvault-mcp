@@ -159,39 +159,6 @@ AI: 📋 총 2개의 SSL 인증서:
   - Provisioning State: Succeeded
 ```
 
-### 신규 인증서 추가 및 Application Gateway 등록
-
-```
-You: 새로운 SSL 인증서를 Key Vault에 등록해줘
-
-AI: ✅ 인증서 'new-ssl-cert' import 완료
-Thumbprint: a1b2c3d4...
-
-💡 이 인증서를 Application Gateway의 SSL 인증서로도 등록하시겠어요?
-`add_ssl_certificate_to_appgw` 도구를 사용하여 등록할 수 있습니다.
-
-You: 응, 등록해줘
-
-AI: ✅ SSL 인증서 added 완료
-- 인증서 이름: new-ssl-cert
-- Key Vault 인증서: new-ssl-cert
-- Key Vault: kv-prod-01
-
-💡 Application Gateway의 Listener TLS certificates에 등록되었습니다.
-🔄 Key Vault에서 인증서가 갱신되면 Application Gateway도 자동으로 최신 버전을 사용합니다.
-```
-
-### Application Gateway SSL 인증서 관리
-
-```
-You: appgw에 등록된 TLS 인증서 목록 알려줘
-
-AI: 📋 총 2개의 SSL 인증서:
-- tempkey
-  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
-  - Provisioning State: Succeeded
-```
-
 ## 📋 사전작업 (MCP 서버 설정 전 필수)
 
 > ⚠️ **중요:** MCP 서버를 설정하기 전에 아래 사전작업을 모두 완료해야 합니다.
