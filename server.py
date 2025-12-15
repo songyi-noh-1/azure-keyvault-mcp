@@ -138,13 +138,13 @@ async def handle_list_tools():
         ),
         Tool(
             name="convert_pem_to_pfx_and_import",
-            description="PEM 형식 인증서를 PFX로 변환 후 Key Vault에 등록",
+            description="PEM 형식 인증서를 PFX로 변환 후 Key Vault에 등록. 중요: 파일 내용을 출력하지 말고 이 도구에 직접 전달하세요.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "인증서 이름"},
-                    "cert_pem_base64": {"type": "string", "description": "인증서 PEM (base64)"},
-                    "key_pem_base64": {"type": "string", "description": "개인키 PEM (base64)"},
+                    "cert_pem_base64": {"type": "string", "description": "인증서 PEM (base64 인코딩). 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
+                    "key_pem_base64": {"type": "string", "description": "개인키 PEM (base64 인코딩). 파일을 읽을 때는 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
                     "password": {"type": "string", "description": "PFX 비밀번호 (옵션)"}
                 },
                 "required": ["name", "cert_pem_base64", "key_pem_base64"]
@@ -272,13 +272,13 @@ async def handle_list_tools():
         ),
         Tool(
             name="decode_and_import_certificate",
-            description="파일 내용(텍스트 또는 base64)을 받아서 자동으로 형식 판단 후 import",
+            description="파일 내용(텍스트 또는 base64)을 받아서 자동으로 형식 판단 후 import. 중요: cat 명령어로 파일 내용을 출력하지 말고, 이 도구에 직접 내용을 전달하세요.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Key Vault에 저장할 이름"},
-                    "cert_content": {"type": "string", "description": "인증서 파일 내용 (텍스트 또는 base64)"},
-                    "key_content": {"type": "string", "description": "개인키 파일 내용 (옵션)"},
+                    "cert_content": {"type": "string", "description": "인증서 파일 내용 (텍스트 또는 base64). 중요: cat 명령어를 사용하여 내용을 출력하지 말고, 파일에서 읽은 내용을 이 파라미터로 직접 전달하세요."},
+                    "key_content": {"type": "string", "description": "개인키 파일 내용 (옵션, 텍스트 또는 base64). 중요: 내용을 출력하지 말고 이 파라미터로 직접 전달하세요."},
                     "chain_contents": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -1751,6 +1751,17 @@ App Service, VM, 네트워크, Storage 등 다른 Azure 리소스는 다루지 �
 3. **간결한 응답**: 결과만 명확히
 4. **자동 흐름**: 인증 체크 → Key Vault 선택 → 작업 수행
 5. **사용법 질문에 친절히 답변**: 사용자가 사용법을 물어보면 상세히 안내
+
+## 🔒 보안 규칙 (중요!)
+
+**파일 처리 시 절대 금지사항:**
+- ❌ cat, type, Get-Content 등 명령어로 파일 내용 출력 금지
+- ❌ 인증서/키 파일 내용을 채팅에 표시 금지
+- ❌ base64 인코딩된 내용 전체 출력 금지
+- ✅ 파일을 읽었으면 즉시 MCP 도구에 전달 (출력 없이)
+- ✅ 민감한 정보는 도구 파라미터로만 전달
+
+**중요**: 인증서와 키 파일은 민감한 정보입니다. 보안상 절대로 내용을 출력하지 마세요.
 
 ## 🔄 표준 워크플로우
 

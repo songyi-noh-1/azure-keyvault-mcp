@@ -55,3 +55,13 @@ When user says "로그인 완료" or "로그인 했어" or "인증 완료":
 2. This will refresh the authentication status
 3. If successful, proceed to list_keyvaults
 4. If still failing, show specific error
+
+# 파일 처리 시 주의사항
+When user attaches certificate/key files:
+1. ❌ NEVER use cat, type, or any command to display file contents
+2. ❌ NEVER print or output the full certificate/key content
+3. ✅ IMMEDIATELY use the appropriate MCP tool (convert_pem_to_pfx_and_import, decode_and_import_certificate, etc.)
+4. ✅ Extract only the base64 encoded content from the file if needed, but do NOT display it
+5. ✅ Pass the content directly to the tool without showing it to the user
+
+Critical: Certificate and key files contain sensitive information. Displaying them violates security best practices.
