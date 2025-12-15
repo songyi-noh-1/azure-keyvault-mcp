@@ -863,11 +863,23 @@ async def handle_call_tool(name: str, arguments: dict):
                     if not cert_path or not key_path:
                         return [TextContent(type="text", text="❌ cert_path와 key_path가 모두 제공되어야 합니다.")]
                     
+                    # 경로 정규화 및 절대 경로 변환 (작업 디렉토리 문제 해결)
+                    cert_path = os_module.path.normpath(cert_path)
+                    key_path = os_module.path.normpath(key_path)
+                    
+                    # 상대 경로인 경우 절대 경로로 변환
+                    if not os_module.path.isabs(cert_path):
+                        cert_path = os_module.path.abspath(cert_path)
+                    if not os_module.path.isabs(key_path):
+                        key_path = os_module.path.abspath(key_path)
+                    
                     # 파일 경로로 직접 처리 (더 효율적)
                     if not os_module.path.exists(cert_path):
-                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                        current_dir = os_module.getcwd()
+                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {cert_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
                     if not os_module.path.exists(key_path):
-                        return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                        current_dir = os_module.getcwd()
+                        return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {key_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
                     
                     # 파일이 실제 파일인지 확인 (디렉토리가 아닌)
                     if not os_module.path.isfile(cert_path):
@@ -1118,12 +1130,34 @@ async def handle_call_tool(name: str, arguments: dict):
             chain_paths = arguments.get("chain_paths", [])
             password = arguments.get("password")
             
+            # 경로 정규화 및 절대 경로 변환 (작업 디렉토리 문제 해결)
+            cert_path = os.path.normpath(cert_path.strip())
+            if not os.path.isabs(cert_path):
+                cert_path = os.path.abspath(cert_path)
+            
             # 파일 존재 확인
             if not os.path.exists(cert_path):
-                return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                current_dir = os.getcwd()
+                return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {cert_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
             
-            if key_path and not os.path.exists(key_path):
-                return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+            if key_path:
+                key_path = os.path.normpath(key_path.strip())
+                if not os.path.isabs(key_path):
+                    key_path = os.path.abspath(key_path)
+                
+                if not os.path.exists(key_path):
+                    current_dir = os.getcwd()
+                    return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {key_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
+            
+            # 체인 경로도 정규화
+            if chain_paths:
+                normalized_chain_paths = []
+                for chain_path in chain_paths:
+                    chain_path = os.path.normpath(chain_path.strip())
+                    if not os.path.isabs(chain_path):
+                        chain_path = os.path.abspath(chain_path)
+                    normalized_chain_paths.append(chain_path)
+                chain_paths = normalized_chain_paths
             
             try:
                 # 파일 확장자로 형식 판단
@@ -1213,8 +1247,14 @@ async def handle_call_tool(name: str, arguments: dict):
             pfx_path = arguments["pfx_path"]
             password = arguments.get("password")
             
+            # 경로 정규화 및 절대 경로 변환 (작업 디렉토리 문제 해결)
+            pfx_path = os.path.normpath(pfx_path.strip())
+            if not os.path.isabs(pfx_path):
+                pfx_path = os.path.abspath(pfx_path)
+            
             if not os.path.exists(pfx_path):
-                return [TextContent(type="text", text=f"❌ PFX 파일을 찾을 수 없습니다: {pfx_path}")]
+                current_dir = os.getcwd()
+                return [TextContent(type="text", text=f"❌ PFX 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {pfx_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
             
             try:
                 with open(pfx_path, 'rb') as f:
@@ -1256,8 +1296,14 @@ async def handle_call_tool(name: str, arguments: dict):
                     if not cert_path or not cert_path.strip():
                         return [TextContent(type="text", text="❌ cert_path가 비어있습니다.")]
                     
+                    # 경로 정규화 및 절대 경로 변환 (작업 디렉토리 문제 해결)
+                    cert_path = os_module.path.normpath(cert_path.strip())
+                    if not os_module.path.isabs(cert_path):
+                        cert_path = os_module.path.abspath(cert_path)
+                    
                     if not os_module.path.exists(cert_path):
-                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                        current_dir = os_module.getcwd()
+                        return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {cert_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
                     
                     if not os_module.path.isfile(cert_path):
                         return [TextContent(type="text", text=f"❌ 인증서 경로가 파일이 아닙니다: {cert_path}")]
@@ -1267,8 +1313,14 @@ async def handle_call_tool(name: str, arguments: dict):
                         if not key_path or not key_path.strip():
                             return [TextContent(type="text", text="❌ key_path가 비어있습니다.")]
                         
+                        # 경로 정규화 및 절대 경로 변환
+                        key_path = os_module.path.normpath(key_path.strip())
+                        if not os_module.path.isabs(key_path):
+                            key_path = os_module.path.abspath(key_path)
+                        
                         if not os_module.path.exists(key_path):
-                            return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                            current_dir = os_module.getcwd()
+                            return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {key_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
                         
                         if not os_module.path.isfile(key_path):
                             return [TextContent(type="text", text=f"❌ 개인키 경로가 파일이 아닙니다: {key_path}")]
@@ -1513,12 +1565,23 @@ async def handle_call_tool(name: str, arguments: dict):
             chain_patterns = arguments.get("chain_patterns", [])
             password = arguments.get("password")
             
+            # 경로 정규화 및 절대 경로 변환 (작업 디렉토리 문제 해결)
+            cert_path = os.path.normpath(cert_path.strip())
+            if not os.path.isabs(cert_path):
+                cert_path = os.path.abspath(cert_path)
+            
+            key_path = os.path.normpath(key_path.strip())
+            if not os.path.isabs(key_path):
+                key_path = os.path.abspath(key_path)
+            
             # 파일 존재 확인
             if not os.path.exists(cert_path):
-                return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다: {cert_path}")]
+                current_dir = os.getcwd()
+                return [TextContent(type="text", text=f"❌ 인증서 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {cert_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
             
             if not os.path.exists(key_path):
-                return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다: {key_path}")]
+                current_dir = os.getcwd()
+                return [TextContent(type="text", text=f"❌ 개인키 파일을 찾을 수 없습니다.\n\n**시도한 경로:** {key_path}\n**현재 작업 디렉토리:** {current_dir}\n\n💡 파일 경로가 올바른지 확인해주세요. 절대 경로를 사용하는 것을 권장합니다.")]
             
             try:
                 # 체인 인증서 자동 검색
