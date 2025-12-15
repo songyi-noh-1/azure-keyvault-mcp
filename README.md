@@ -112,6 +112,29 @@ AI:
 버전: def456
 ```
 
+### 여러 Secret 한 번에 등록
+
+```
+You: 다음 secret들을 한 번에 등록해줘:
+- db-connection-string: "Server=..."
+- api-key: "abc123"
+- jwt-secret: "secret-key"
+
+AI:
+[select_keyvault 자동 실행]
+[set_secrets 자동 실행]
+✅ 여러 Secret 등록 결과
+
+전체: 3개
+성공: 3개 ✅
+실패: 0개 ❌
+
+성공한 Secret:
+- ✅ db-connection-string (버전: v1)
+- ✅ api-key (버전: v1)
+- ✅ jwt-secret (버전: v1)
+```
+
 ### 신규 인증서 추가 및 Application Gateway 등록
 
 ```
@@ -146,9 +169,6 @@ AI:
 - tempkey
   - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
   - Provisioning State: Succeeded
-- hermes-kt-com
-  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/hermes-kt-com/
-  - Provisioning State: Succeeded
 ```
 
 ### 신규 인증서 추가 및 Application Gateway 등록
@@ -184,9 +204,6 @@ AI:
 📋 총 2개의 SSL 인증서:
 - tempkey
   - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/tempkey/
-  - Provisioning State: Succeeded
-- hermes-kt-com
-  - Key Vault Secret ID: https://kv-prod-01.vault.azure.net:443/secrets/hermes-kt-com/
   - Provisioning State: Succeeded
 ```
 
@@ -326,30 +343,80 @@ Claude Desktop에서도 이 MCP 서버를 사용할 수 있습니다.
 > - `.cursorrules` 파일과 동일한 내용을 `.claude` 파일로 복사하여 사용할 수 있습니다
 
 **macOS:**
+
+설정 파일 위치: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+> **💡 설정 파일 빠르게 열기:**
+> 
+> Finder에서 설정 파일을 열려면:
+> ```bash
+> open -a "TextEdit" ~/Library/Application\ Support/Claude/claude_desktop_config.json
+> ```
+> 
+> 또는 터미널에서:
+> ```bash
+> cd ~/Library/Application\ Support/Claude/
+> # 파일이 없으면 생성
+> touch claude_desktop_config.json
+> # 편집
+> nano claude_desktop_config.json
+> ```
+
+설정 예시:
 ```json
-// ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "azure-keyvault": {
-      "command": "/절대경로/azure-keyvault-mcp/venv/bin/python",
-      "args": ["/절대경로/azure-keyvault-mcp/server.py"]
+      "command": "/Users/yourname/azure-keyvault-mcp/venv/bin/python",
+      "args": ["/Users/yourname/azure-keyvault-mcp/server.py"]
     }
   }
 }
 ```
 
+> **💡 절대 경로 빠르게 확인하기:**
+> 
+> 프로젝트 폴더에서 다음 명령으로 경로를 복사할 수 있습니다:
+> ```bash
+> cd /path/to/azure-keyvault-mcp
+> echo "$(pwd)/venv/bin/python"
+> echo "$(pwd)/server.py"
+> ```
+
 **Windows:**
+
+설정 파일 위치: `%APPDATA%\Claude\claude_desktop_config.json` (보통 `C:\Users\YourName\AppData\Roaming\Claude\claude_desktop_config.json`)
+
+> **💡 설정 파일 빠르게 열기:**
+> 
+> PowerShell에서:
+> ```powershell
+> # 설정 파일 경로 확인
+> $configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
+> Write-Host "설정 파일: $configPath"
+> 
+> # 디렉토리 생성 (없는 경우)
+> New-Item -ItemType Directory -Force -Path "$env:APPDATA\Claude"
+> 
+> # 메모장으로 열기
+> notepad $configPath
+> ```
+
+설정 예시:
 ```json
-// %APPDATA%\Claude\claude_desktop_config.json
 {
   "mcpServers": {
     "azure-keyvault": {
-      "command": "C:\\절대경로\\azure-keyvault-mcp\\venv\\Scripts\\python.exe",
-      "args": ["C:\\절대경로\\azure-keyvault-mcp\\server.py"]
+      "command": "C:/Users/YourName/azure-keyvault-mcp/venv/Scripts/python.exe",
+      "args": ["C:/Users/YourName/azure-keyvault-mcp/server.py"]
     }
   }
 }
 ```
+
+> **💡 Windows에서 슬래시(`/`) 사용 권장:**
+> 
+> Windows에서도 슬래시를 사용할 수 있으며, 백슬래시 이스케이프 문제를 피할 수 있습니다.
 
 > **💡 Windows에서 경로 찾는 방법:**
 > 
@@ -464,19 +531,268 @@ Write-Host "Server: $serverPath"
 출력된 경로를 그대로 설정 파일에 복사하되, 백슬래시를 슬래시로 변경하거나 `\\`로 이스케이프하세요.
 
 **Linux:**
+
+설정 파일 위치: `~/.config/Claude/claude_desktop_config.json`
+
+> **💡 설정 파일 빠르게 열기:**
+> ```bash
+> # 디렉토리 생성 (없는 경우)
+> mkdir -p ~/.config/Claude
+> # 파일 편집
+> nano ~/.config/Claude/claude_desktop_config.json
+> ```
+
+설정 예시:
 ```json
-// ~/.config/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "azure-keyvault": {
-      "command": "/절대경로/azure-keyvault-mcp/venv/bin/python",
-      "args": ["/절대경로/azure-keyvault-mcp/server.py"]
+      "command": "/home/username/azure-keyvault-mcp/venv/bin/python",
+      "args": ["/home/username/azure-keyvault-mcp/server.py"]
     }
   }
 }
 ```
 
 > **참고:** 설정 파일을 수정한 후 Claude Desktop을 재시작해야 합니다.
+
+### 🔍 Claude Desktop 설정 확인 및 테스트
+
+#### 1. 설정 파일 경로 빠르게 찾기
+
+**macOS:**
+```bash
+# 설정 파일 경로 확인
+echo ~/Library/Application\ Support/Claude/claude_desktop_config.json
+
+# 설정 파일 편집
+open -a "TextEdit" ~/Library/Application\ Support/Claude/claude_desktop_config.json
+# 또는
+nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+**Windows:**
+```powershell
+# 설정 파일 경로 확인
+$configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
+Write-Host $configPath
+
+# 설정 파일 편집 (메모장으로 열기)
+notepad $configPath
+```
+
+**Linux:**
+```bash
+# 설정 파일 경로 확인
+echo ~/.config/Claude/claude_desktop_config.json
+
+# 설정 파일 편집
+nano ~/.config/Claude/claude_desktop_config.json
+```
+
+#### 2. 설정 파일이 올바른지 확인
+
+설정 파일이 올바른 JSON 형식인지 확인하세요:
+
+**macOS/Linux:**
+```bash
+# JSON 유효성 검사
+python3 -m json.tool ~/Library/Application\ Support/Claude/claude_desktop_config.json
+# 또는 (Linux)
+python3 -m json.tool ~/.config/Claude/claude_desktop_config.json
+```
+
+**Windows:**
+```powershell
+# JSON 유효성 검사
+python -m json.tool "$env:APPDATA\Claude\claude_desktop_config.json"
+```
+
+#### 3. MCP 서버 수동 테스트
+
+설정이 올바른지 확인하기 위해 MCP 서버를 직접 실행해볼 수 있습니다:
+
+```bash
+# 프로젝트 폴더로 이동
+cd /절대경로/azure-keyvault-mcp
+
+# venv 활성화
+source venv/bin/activate  # macOS/Linux
+# 또는
+venv\Scripts\activate  # Windows
+
+# MCP 서버가 정상적으로 시작되는지 확인 (stdio 모드로 실행)
+python server.py
+```
+
+> ⚠️ **참고:** MCP 서버는 stdio 모드로 실행되므로, 직접 실행하면 대화형 입력을 기다립니다. 이것은 정상적인 동작입니다. `Ctrl+C`로 종료할 수 있습니다.
+
+#### 4. Claude Desktop에서 MCP 서버 확인
+
+1. **Claude Desktop 재시작**
+   - 설정 파일을 수정한 후 반드시 Claude Desktop을 완전히 종료하고 다시 시작하세요.
+
+2. **MCP 서버 상태 확인**
+   - Claude Desktop을 열고 새 대화를 시작합니다.
+   - Claude에게 "Azure 인증 상태 확인해줘"라고 요청합니다.
+   - MCP 서버가 정상적으로 연결되었다면 `check_azure_auth` 도구가 사용됩니다.
+
+3. **도구 목록 확인**
+   - Claude Desktop의 개발자 도구나 로그에서 MCP 서버가 등록되었는지 확인할 수 있습니다.
+   - 또는 "Azure Key Vault에서 사용 가능한 도구 목록을 보여줘"라고 요청해보세요.
+
+#### 5. 환경 변수 설정 (필요한 경우)
+
+특정 상황에서 환경 변수가 필요할 수 있습니다. Claude Desktop 설정 파일에서 환경 변수를 추가할 수 있습니다:
+
+**macOS/Linux:**
+```json
+{
+  "mcpServers": {
+    "azure-keyvault": {
+      "command": "/절대경로/azure-keyvault-mcp/venv/bin/python",
+      "args": ["/절대경로/azure-keyvault-mcp/server.py"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "AZURE_KEYVAULT_DISABLE_SSL_VERIFY": "0"
+      }
+    }
+  }
+}
+```
+
+**Windows:**
+```json
+{
+  "mcpServers": {
+    "azure-keyvault": {
+      "command": "C:/절대경로/azure-keyvault-mcp/venv/Scripts/python.exe",
+      "args": ["C:/절대경로/azure-keyvault-mcp/server.py"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "AZURE_KEYVAULT_DISABLE_SSL_VERIFY": "0"
+      }
+    }
+  }
+}
+```
+
+#### 6. 디버깅 및 트러블슈팅
+
+**문제: MCP 서버가 Claude Desktop에 나타나지 않습니다**
+
+1. **설정 파일 경로 확인**
+   - 설정 파일이 올바른 위치에 있는지 확인하세요.
+   - 파일 이름이 정확히 `claude_desktop_config.json`인지 확인하세요.
+
+2. **JSON 형식 확인**
+   - 설정 파일이 유효한 JSON인지 확인하세요.
+   - 쉼표(`,`)나 따옴표(`"`)가 빠지지 않았는지 확인하세요.
+
+3. **경로 확인**
+   - Python 실행 파일 경로와 `server.py` 경로가 정확한지 확인하세요.
+   - 절대 경로를 사용하는 것을 권장합니다.
+
+4. **Claude Desktop 재시작**
+   - 설정 파일을 수정한 후 Claude Desktop을 완전히 종료하고 다시 시작하세요.
+   - macOS의 경우 Activity Monitor에서 Claude Desktop 프로세스를 확인하세요.
+
+**문제: MCP 서버는 나타나지만 도구가 작동하지 않습니다**
+
+1. **Azure 인증 확인**
+   - 터미널에서 `az account show`를 실행하여 Azure CLI 로그인 상태를 확인하세요.
+   - 로그인이 되어 있지 않다면 `az login`을 실행하세요.
+
+2. **MCP 서버 로그 확인**
+   - Claude Desktop의 개발자 도구나 콘솔에서 오류 메시지를 확인하세요.
+   - 또는 터미널에서 직접 MCP 서버를 실행하여 오류를 확인할 수 있습니다.
+
+**문제: 경로에 공백이나 특수문자가 있는 경우**
+
+경로에 공백이 있거나 특수문자가 있는 경우, 따옴표로 감싸거나 슬래시(`/`)를 사용하세요:
+
+```json
+{
+  "mcpServers": {
+    "azure-keyvault": {
+      "command": "/Users/My Name/azure-keyvault-mcp/venv/bin/python",
+      "args": ["/Users/My Name/azure-keyvault-mcp/server.py"]
+    }
+  }
+}
+```
+
+또는 Windows에서는:
+
+```json
+{
+  "mcpServers": {
+    "azure-keyvault": {
+      "command": "C:/Users/My Name/azure-keyvault-mcp/venv/Scripts/python.exe",
+      "args": ["C:/Users/My Name/azure-keyvault-mcp/server.py"]
+    }
+  }
+}
+```
+
+#### 7. 빠른 설정 스크립트 (선택사항)
+
+프로젝트 폴더에서 실행하여 설정 파일 경로와 예시를 출력하는 스크립트를 만들 수 있습니다:
+
+**macOS/Linux (`setup_claude_desktop.sh`):**
+```bash
+#!/bin/bash
+PROJECT_DIR=$(pwd)
+PYTHON_PATH="$PROJECT_DIR/venv/bin/python"
+SERVER_PATH="$PROJECT_DIR/server.py"
+
+echo "📋 Claude Desktop 설정 정보:"
+echo ""
+echo "설정 파일 위치:"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CONFIG_PATH="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+    echo "  $CONFIG_PATH"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    CONFIG_PATH="$HOME/.config/Claude/claude_desktop_config.json"
+    echo "  $CONFIG_PATH"
+fi
+echo ""
+echo "설정 예시:"
+cat <<EOF
+{
+  "mcpServers": {
+    "azure-keyvault": {
+      "command": "$PYTHON_PATH",
+      "args": ["$SERVER_PATH"]
+    }
+  }
+}
+EOF
+```
+
+**Windows (`setup_claude_desktop.ps1`):**
+```powershell
+$projectDir = (Get-Location).Path
+$pythonPath = Join-Path $projectDir "venv\Scripts\python.exe"
+$serverPath = Join-Path $projectDir "server.py"
+$configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
+
+Write-Host "📋 Claude Desktop 설정 정보:" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "설정 파일 위치:"
+Write-Host "  $configPath"
+Write-Host ""
+Write-Host "설정 예시:"
+$config = @{
+    mcpServers = @{
+        "azure-keyvault" = @{
+            command = $pythonPath
+            args = @($serverPath)
+        }
+    }
+}
+$config | ConvertTo-Json -Depth 10
+```
 
 ## 🛠️ 지원 도구
 
@@ -486,6 +802,7 @@ Write-Host "Server: $serverPath"
 | **Key Vault** | list_keyvaults | Key Vault 목록 조회 |
 | | select_keyvault | Key Vault 선택 |
 | **Secret** | set_secret | Secret 등록/업데이트 |
+| | set_secrets | 여러 개의 Secret을 한 번에 등록/업데이트 |
 | | get_secret | Secret 조회 |
 | | list_secrets | Secret 목록 |
 | | delete_secret | Secret 삭제 |

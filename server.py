@@ -73,6 +73,28 @@ async def handle_list_tools():
             }
         ),
         Tool(
+            name="set_secrets",
+            description="Key Vault에 여러 개의 secret을 한 번에 등록/업데이트",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "secrets": {
+                        "type": "array",
+                        "description": "등록할 secret 목록",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "Secret 이름"},
+                                "value": {"type": "string", "description": "Secret 값"}
+                            },
+                            "required": ["name", "value"]
+                        }
+                    }
+                },
+                "required": ["secrets"]
+            }
+        ),
+        Tool(
             name="get_secret",
             description="Key Vault에서 secret 조회",
             inputSchema={
@@ -705,6 +727,43 @@ async def handle_call_tool(name: str, arguments: dict):
                 return [TextContent(type="text", text=f"✅ Secret '{result['name']}' 저장 완료\n버전: {result['version']}")]
             else:
                 return [TextContent(type="text", text=f"❌ 오류: {result['error']}")]
+        
+        elif name == "set_secrets":
+            secrets_list = arguments["secrets"]
+            
+            if not secrets_list or len(secrets_list) == 0:
+                return [TextContent(type="text", text="❌ 등록할 secret이 없습니다. secrets 배열에 최소 1개 이상의 secret이 필요합니다.")]
+            
+            result = kv_manager.set_secrets(secrets_list)
+            
+            # 결과 포맷팅
+            result_text = f"📋 여러 Secret 등록 결과\n\n"
+            result_text += f"**전체:** {result['total']}개\n"
+            result_text += f"**성공:** {result['succeeded']}개 ✅\n"
+            result_text += f"**실패:** {result['failed']}개 ❌\n\n"
+            
+            if result['succeeded'] > 0:
+                result_text += "**성공한 Secret:**\n"
+                for r in result['results']:
+                    if r.get('success'):
+                        result_text += f"- ✅ {r['name']} (버전: {r.get('version', 'N/A')})\n"
+                result_text += "\n"
+            
+            if result['failed'] > 0:
+                result_text += "**실패한 Secret:**\n"
+                for r in result['results']:
+                    if not r.get('success'):
+                        error_msg = r.get('error', '알 수 없는 오류')
+                        result_text += f"- ❌ {r['name']}: {error_msg}\n"
+                result_text += "\n"
+            
+            if result['success']:
+                result_text = "✅ " + result_text
+            else:
+                result_text = "⚠️ " + result_text
+                result_text += "일부 secret이 실패했습니다. 위의 오류를 확인해주세요.\n"
+            
+            return [TextContent(type="text", text=result_text)]
         
         elif name == "get_secret": 
             result = kv_manager.get_secret(arguments["name"])
@@ -1656,6 +1715,11 @@ async def handle_list_prompts():
             "name": "agent_intro",
             "description": "Azure Key Vault 관리 Agent 소개",
             "arguments": []
+        },
+        {
+            "name": "usage_guide",
+            "description": "Secret 및 Certificate 등록 방법 등 상세 사용 가이드",
+            "arguments": []
         }
     ]
 
@@ -1673,7 +1737,7 @@ async def handle_get_prompt(name: str, arguments: dict):
 ## 🎯 전문 분야
 
 ### Secret 관리
-- Secret 등록/업데이트 (set_secret)
+- Secret 등록/업데이트 (set_secret, set_secrets)
 - Secret 조회 (get_secret)
 - Secret 목록 (list_secrets)
 - Secret 삭제 (delete_secret)
@@ -1700,6 +1764,7 @@ App Service, VM, 네트워크, Storage 등 다른 Azure 리소스는 다루지 �
 2. **단계적 진행**: 한 번에 하나씩
 3. **간결한 응답**: 결과만 명확히
 4. **자동 흐름**: 인증 체크 → Key Vault 선택 → 작업 수행
+5. **사용법 질문에 친절히 답변**: 사용자가 사용법을 물어보면 상세히 안내
 
 ## 🔄 표준 워크플로우
 
@@ -1726,10 +1791,197 @@ AI: [select_keyvault] ✅
 
 구체적 요청은 바로 도구 실행: 
 - "kv-prod의 secret 목록" → 즉시 select + list 실행
-- "db-password 조회" → 즉시 get_secret 실행"""
+- "db-password 조회" → 즉시 get_secret 실행
+
+## 📚 사용법 가이드
+
+사용자가 "secret 등록 방법", "인증서 등록 방법", "사용법 알려줘" 등을 물어보면:
+
+1. **즉시 답변**: 기본적인 사용법을 간단히 설명
+2. **필요시 상세 가이드 제공**: `usage_guide` 프롬프트나 `azure://keyvault/usage-guide` 리소스를 참고하여 상세히 안내
+3. **실제 예시 제공**: 구체적인 사용 예시를 함께 보여주기
+
+**예시 질문:**
+- "secret 등록 방법 알려줘"
+- "인증서 등록하는 방법이 뭐야?"
+- "PFX 파일로 인증서 등록하려면 어떻게 해?"
+- "여러 개의 secret을 한 번에 등록할 수 있어?"
+- "사용법 가이드 보여줘"
+
+이런 질문에 친절하고 상세하게 답변하세요."""
                 }
             ]
         }
+    
+    elif name == "usage_guide":
+        return {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": """Azure Key Vault Agent 사용 방법을 상세히 알려주세요."""
+                },
+                {
+                    "role": "assistant",
+                    "content": """# Azure Key Vault Agent 상세 사용 가이드
+
+## 🔐 Secret 등록 방법
+
+### 1. 단일 Secret 등록
+**도구:** `set_secret`
+
+**사용 예시:**
+- "db-password secret을 'MyPassword123'으로 등록해줘"
+- "api-key를 'xyz789'로 저장해줘"
+
+**절차:**
+1. Azure 인증 확인 (자동)
+2. Key Vault 선택 (`list_keyvaults` → `select_keyvault`)
+3. `set_secret` 도구 실행
+
+### 2. 여러 Secret 한 번에 등록
+**도구:** `set_secrets`
+
+**사용 예시:**
+- "다음 secret들을 등록해줘: db-connection-string: 'Server=...', api-key: 'abc123'"
+- 여러 개의 secret을 배열로 제공하면 한 번에 등록 가능
+
+**장점:**
+- 한 번의 요청으로 여러 secret 등록
+- 일부 실패해도 나머지는 계속 처리
+- 결과를 성공/실패별로 정리해서 표시
+
+## 📜 Certificate 등록 방법
+
+### 1. PFX 파일로 등록
+**도구:** `import_certificate_from_pfx`
+
+**절차:**
+1. PFX 파일을 base64로 인코딩
+   ```bash
+   base64 -i cert.pfx | pbcopy  # macOS
+   base64 cert.pfx  # Linux
+   ```
+2. base64 내용과 비밀번호(필요시) 제공
+3. Agent가 자동으로 Key Vault에 등록
+
+**사용 예시:**
+- "PFX 파일로 인증서 등록해줘" → 파일 내용 제공
+
+### 2. PEM 파일로 등록
+**도구:** `convert_pem_to_pfx_and_import`
+
+**필요한 것:**
+- 인증서 PEM 파일 (cert.pem)
+- 개인키 PEM 파일 (key.pem)
+- 비밀번호 (옵션)
+
+**절차:**
+1. cert.pem과 key.pem을 각각 base64로 인코딩
+2. 두 파일 내용 제공
+3. Agent가 자동으로 PFX로 변환 후 등록
+
+### 3. CRT 파일로 등록
+**도구:** `import_crt_certificate`
+
+**절차:** PEM과 동일 (CRT + KEY → PFX 변환 후 등록)
+
+### 4. 번들 PEM 파일로 등록
+**도구:** `import_bundle_certificate`
+
+**필요한 것:**
+- cert와 key가 하나의 파일에 있는 번들 PEM
+- 비밀번호 (옵션)
+
+### 5. 로컬 파일 경로로 등록
+**도구:** `import_certificate_from_files` 또는 `import_pfx_from_file`
+
+**사용 예시:**
+- "로컬 파일로 인증서 등록해줘: cert_path='/path/to/cert.pem', key_path='/path/to/key.pem'"
+
+**장점:**
+- 파일 경로만 제공하면 Agent가 직접 읽어서 처리
+
+### 6. 파일 내용을 드래그해서 등록
+**도구:** `decode_and_import_certificate`
+
+**사용 예시:**
+- Cursor에서 파일을 드래그하여 내용 제공
+- Agent가 자동으로 형식 감지 후 처리
+
+### 7. 체인 인증서 포함 등록
+**도구:** `import_certificate_with_chain` 또는 `import_certificate_with_auto_chain`
+
+**필요한 것:**
+- 주 인증서 (cert)
+- 개인키 (key)
+- 중간 인증서들 (chain, 옵션)
+
+**자동 체인 감지:**
+- `import_certificate_with_auto_chain` 사용 시
+- 같은 디렉토리의 체인 인증서 파일을 자동으로 찾아서 포함
+
+### 8. 자체 서명 인증서 생성
+**도구:** `generate_self_signed_cert`
+
+**사용 예시:**
+- "테스트용 자체 서명 인증서 생성해줘: common_name='example.com'"
+
+## 🔍 조회 방법
+
+### Secret 조회
+**도구:** `get_secret`
+- "db-password secret 값 알려줘"
+
+### Secret 목록
+**도구:** `list_secrets`
+- "등록된 secret 목록 보여줘"
+
+### Certificate 조회
+**도구:** `get_certificate`
+- "ssl-cert 인증서 정보 알려줘"
+
+### Certificate 목록
+**도구:** `list_certificates`
+- "등록된 인증서 목록 보여줘"
+
+## 🗑️ 삭제 방법
+
+### Secret 삭제
+**도구:** `delete_secret`
+- "api-key secret 삭제해줘"
+
+### Certificate 삭제
+**도구:** `delete_certificate`
+- "old-cert 인증서 삭제해줘"
+
+## 🔄 일반적인 워크플로우
+
+1. **Azure 인증 확인**
+   - 자동으로 체크되지만, 필요시 "인증 상태 확인해줘"로 확인 가능
+
+2. **Key Vault 선택**
+   - "Key Vault 목록 보여줘" → `list_keyvaults`
+   - "kv-prod 선택해줘" → `select_keyvault`
+
+3. **작업 수행**
+   - Secret 등록/조회/삭제
+   - Certificate 등록/조회/삭제
+
+## 💡 유용한 팁
+
+- **여러 Secret 등록**: `set_secrets` 도구로 한 번에 여러 개 등록 가능
+- **자동 형식 감지**: 파일을 제공하면 Agent가 자동으로 형식 판단
+- **체인 자동 검색**: `import_certificate_with_auto_chain`으로 체인 파일 자동 찾기
+- **Application Gateway 연동**: 인증서 등록 후 Application Gateway에도 자동 등록 제안
+
+## ❓ 질문이 있으면
+
+사용자가 구체적인 사용법을 물어보면, 이 가이드를 참고하여 친절하고 상세하게 답변해주세요."""
+                }
+            ]
+        }
+    
+    return None
 
 @server.list_resources()
 async def handle_list_resources():
@@ -1739,6 +1991,12 @@ async def handle_list_resources():
             "uri": "azure://keyvault/info",
             "name": "Agent Information",
             "description": "Azure Key Vault 관리 Agent 정보",
+            "mimeType": "text/plain"
+        },
+        {
+            "uri": "azure://keyvault/usage-guide",
+            "name": "Usage Guide",
+            "description": "Secret 및 Certificate 등록 방법 등 상세 사용 가이드",
             "mimeType": "text/plain"
         }
     ]

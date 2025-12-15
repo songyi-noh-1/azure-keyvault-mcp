@@ -141,6 +141,70 @@ class KeyVaultManager:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def set_secrets(self, secrets: List[Dict[str, str]]) -> Dict:
+        """여러 개의 Secret을 한 번에 등록/업데이트
+        
+        Args:
+            secrets: [{"name": "secret1", "value": "value1"}, ...] 형태의 리스트
+        
+        Returns:
+            {
+                "success": True/False,
+                "total": 전체 개수,
+                "succeeded": 성공 개수,
+                "failed": 실패 개수,
+                "results": [
+                    {"name": "secret1", "success": True, "version": "..."},
+                    {"name": "secret2", "success": False, "error": "..."},
+                    ...
+                ]
+            }
+        """
+        results = []
+        succeeded_count = 0
+        failed_count = 0
+        
+        for secret_item in secrets:
+            name = secret_item.get("name")
+            value = secret_item.get("value")
+            
+            if not name or value is None:
+                results.append({
+                    "name": name or "unknown",
+                    "success": False,
+                    "error": "name과 value가 모두 필요합니다."
+                })
+                failed_count += 1
+                continue
+            
+            try:
+                secret = self.secret_client.set_secret(name, value)
+                results.append({
+                    "name": secret.name,
+                    "success": True,
+                    "version": secret.properties.version,
+                    "created": str(secret.properties.created_on)
+                })
+                succeeded_count += 1
+            except Exception as e:
+                results.append({
+                    "name": name,
+                    "success": False,
+                    "error": str(e)
+                })
+                failed_count += 1
+        
+        total = len(secrets)
+        all_succeeded = failed_count == 0
+        
+        return {
+            "success": all_succeeded,
+            "total": total,
+            "succeeded": succeeded_count,
+            "failed": failed_count,
+            "results": results
+        }
+    
     def get_secret(self, name: str) -> Dict:
         """Secret 조회"""
         try:
